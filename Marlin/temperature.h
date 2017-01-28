@@ -65,7 +65,11 @@ class Temperature {
       static float redundant_temperature;
     #endif
 
+    #ifndef HARDWARE_PWM
     static uint8_t soft_pwm_bed;
+    #else
+    static uint16_t hard_pwm_bed;
+    #endif
 
     #if ENABLED(FAN_SOFT_PWM)
       static uint8_t fanSpeedSoftPwm[FAN_COUNT];
@@ -205,7 +209,11 @@ class Temperature {
       static millis_t next_auto_fan_check_ms;
     #endif
 
-    static uint8_t soft_pwm[HOTENDS];
+    #ifndef HARDWARE_PWM
+      static uint8_t soft_pwm[HOTENDS];
+    #else
+      static uint16_t hard_pwm[HOTENDS];
+    #endif
 
     #if ENABLED(FAN_SOFT_PWM)
       static uint8_t soft_pwm_fan[FAN_COUNT];
