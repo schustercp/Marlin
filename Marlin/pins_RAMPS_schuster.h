@@ -78,7 +78,7 @@
 #define PS_ON_PIN          -1
 #define FAN_PIN             9
 #define FAN_PWM            OCR2B
-#define CONTROLLERFAN_PIN  12
+//#define CONTROLLERFAN_PIN  12
 #define KILL_PIN           41
 
 #define HEATER_0_PIN       6    // EXTRUDER 1 Heater

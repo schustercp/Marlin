@@ -1193,11 +1193,6 @@ void Temperature::init() {
     #endif
   #endif
 
-  // Use timer0 for temperature measurement
-  // Interleave temperature interrupt with millies interrupt
-  OCR0B = 128;
-  SBI(TIMSK0, OCIE0B);
-
 #ifdef HARDWARE_PWM
     // initialize the digital pin as an output.
   pinMode(HEATER_BED_PIN, OUTPUT);
@@ -1264,6 +1259,11 @@ void Temperature::init() {
   SBI(TCCR4A, WGM41);
   SBI(TCCR4A, WGM40);
 #endif
+
+  // Use timer0 for temperature measurement
+  // Interleave temperature interrupt with millies interrupt
+  OCR0B = 128;
+  SBI(TIMSK0, OCIE0B);
   
   // Wait for temperature measurement to settle
   delay(250);
@@ -1683,9 +1683,18 @@ void Temperature::set_current_temp_raw() {
  *  - Check new temperature values for MIN/MAX errors
  *  - Step the babysteps value for each axis towards 0
  */
-ISR(TIMER0_COMPB_vect) { Temperature::isr(); }
 
+ static uint8_t tempISRInProcess = 0;
+
+ISR(TIMER0_COMPB_vect) 
+{ 
+  if(tempISRInProcess == 0x00)
+    Temperature::isr();
+}
+
+static uint8_t inTempControl = 0;
 void Temperature::isr() {
+  tempISRInProcess = 0xFF;
   //Allow UART and stepper ISRs
   CBI(TIMSK0, OCIE0B); //Disable Temperature ISR
   sei();
@@ -2045,9 +2054,17 @@ void Temperature::isr() {
     //   break;
   } // switch(temp_state)
 
-  if (temp_count >= OVERSAMPLENR) { // 10 * 16 * 1/(16000000/64/256)  = 164ms.
+  //SERIAL_ECHO("RAWBed : ");
+  //SERIAL_ECHOLN(raw_temp_bed_value);
+  //SERIAL_ECHO("temp_count : ");
+  //SERIAL_ECHOLN(temp_count);
 
-    temp_count = 0;
+  if (temp_count == OVERSAMPLENR && inTempControl == 0) { // 10 * 16 * 1/(16000000/64/256)  = 164ms.
+
+    inTempControl = 0xFF;
+    //SERIAL_ECHO("temp_count reset :");
+    //SERIAL_ECHOLN((uint16_t)temp_count);
+    
 
     // Update the raw values if they've been read. Else we could be updating them during reading.
     if (!temp_meas_ready) set_current_temp_raw();
@@ -2098,6 +2115,10 @@ void Temperature::isr() {
         #ifdef MAX_CONSECUTIVE_LOW_TEMPERATURE_ERROR_ALLOWED
           if (++consecutive_low_temperature_error[e] >= MAX_CONSECUTIVE_LOW_TEMPERATURE_ERROR_ALLOWED)
         #endif
+            SERIAL_ECHO("min_temp_error 1: ");
+            SERIAL_ECHO(e);
+            SERIAL_ECHO(" : ");
+            SERIAL_ECHOLN(rawtemp);
             min_temp_error(e);
       }
       #ifdef MAX_CONSECUTIVE_LOW_TEMPERATURE_ERROR_ALLOWED
@@ -2112,11 +2133,29 @@ void Temperature::isr() {
       #else
         #define GEBED >=
       #endif
+      
       if (current_temperature_bed_raw GEBED bed_maxttemp_raw && target_temperature_bed > 0.0f) max_temp_error(-1);
-      if (bed_minttemp_raw GEBED current_temperature_bed_raw && target_temperature_bed > 0.0f) min_temp_error(-1);
+      if (bed_minttemp_raw GEBED current_temperature_bed_raw && target_temperature_bed > 0.0f)
+      {
+        SERIAL_ECHO("min: ");
+        SERIAL_ECHO(bed_minttemp_raw);
+        SERIAL_ECHO(" Raw: ");
+        SERIAL_ECHOLN(current_temperature_bed_raw);
+        SERIAL_ECHO(" Count: ");
+        SERIAL_ECHOLN(temp_count);
+        min_temp_error(-1);
+      } 
     #endif
 
+    temp_count = 0;
+    inTempControl = 0x00;
   } // temp_count >= OVERSAMPLENR
+  else if (temp_count > OVERSAMPLENR) {
+    //temp_count = 0;
+    //ZERO(raw_temp_value);
+    //raw_temp_bed_value = 0;
+    SERIAL_ECHO("Temp Oversample Reset.");
+  }
 
   #if ENABLED(BABYSTEPPING)
     LOOP_XYZ(axis) {
@@ -2145,4 +2184,5 @@ void Temperature::isr() {
   #endif
 
   SBI(TIMSK0, OCIE0B); //re-enable Temperature ISR
+  tempISRInProcess = 0x00;
 }

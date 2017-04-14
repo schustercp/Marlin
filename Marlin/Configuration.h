@@ -721,7 +721,7 @@
 #define Y_HOME_DIR -1
 #define Z_HOME_DIR -1
 
-#define min_software_endstops true // If true, axis won't move to coordinates less than HOME_POS.
+#define min_software_endstops false // If true, axis won't move to coordinates less than HOME_POS.
 #define max_software_endstops true  // If true, axis won't move to coordinates greater than the defined lengths below.
 
 // @section machine
@@ -809,7 +809,7 @@
  * Turn on with the command 'M111 S32'.
  * NOTE: Requires a lot of PROGMEM!
  */
-//#define DEBUG_LEVELING_FEATURE
+#define DEBUG_LEVELING_FEATURE true
 
 #if ENABLED(AUTO_BED_LEVELING_LINEAR) || ENABLED(AUTO_BED_LEVELING_BILINEAR)
 
