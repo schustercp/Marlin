@@ -216,12 +216,12 @@
 
 #if LCD_HEIGHT >= 4
   // Up to 3 lines allowed
-  #define MSG_FILAMENT_CHANGE_INIT_1          "Attente Démarrage"
+  #define MSG_FILAMENT_CHANGE_INIT_1          "Attente Demarrage"
   #define MSG_FILAMENT_CHANGE_INIT_2          "du filament"
   #define MSG_FILAMENT_CHANGE_INIT_3          "changer"
   #define MSG_FILAMENT_CHANGE_UNLOAD_1        "attente de"
-  #define MSG_FILAMENT_CHANGE_UNLOAD_2        "décharger filament"
-  #define MSG_FILAMENT_CHANGE_INSERT_1        "insérer filament"
+  #define MSG_FILAMENT_CHANGE_UNLOAD_2        "decharger filament"
+  #define MSG_FILAMENT_CHANGE_INSERT_1        "inserer filament"
   #define MSG_FILAMENT_CHANGE_INSERT_2        "et app. bouton"
   #define MSG_FILAMENT_CHANGE_INSERT_3        "pour continuer..."
   #define MSG_FILAMENT_CHANGE_LOAD_1          "attente de"
@@ -234,7 +234,7 @@
   // Up to 2 lines allowed
   #define MSG_FILAMENT_CHANGE_INIT_1          "Patientez..."
   #define MSG_FILAMENT_CHANGE_UNLOAD_1        "Ejection..."
-  #define MSG_FILAMENT_CHANGE_INSERT_1        "Insérer et click"
+  #define MSG_FILAMENT_CHANGE_INSERT_1        "Inserer et click"
   #define MSG_FILAMENT_CHANGE_LOAD_1          "Chargement..."
   #define MSG_FILAMENT_CHANGE_EXTRUDE_1       "Extrusion..."
   #define MSG_FILAMENT_CHANGE_RESUME_1        "Reprise..."
