@@ -1480,24 +1480,6 @@ void Temperature::disable_all_heaters() {
    #else
     HEATER_0_PWM = 0;
    #endif
-   #ifndef HARDWARE_PWM
-      DISABLE_HEATER(1);
-   #else
-    HEATER_1_PWM = 0;
-   #endif
-   #ifndef HARDWARE_PWM
-        DISABLE_HEATER(2);
-   #else
-    HEATER_2_PWM = 0;
-   #endif
-   #ifndef HARDWARE_PWM
-          DISABLE_HEATER(3);
-   #else
-    HEATER_3_PWM = 0;
-   #endif
-        #endif // HOTENDS > 3
-      #endif // HOTENDS > 2
-    #endif // HOTENDS > 1
   #endif
 
   #if HAS_TEMP_BED
@@ -2181,7 +2163,6 @@ void Temperature::isr() {
     #endif
 
     temp_count = 0;
-    inTempControl = 0x00;
   } // temp_count >= OVERSAMPLENR
   else if (temp_count > OVERSAMPLENR) {
     //temp_count = 0;
