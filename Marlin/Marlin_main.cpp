@@ -236,6 +236,12 @@
 #include "duration_t.h"
 #include "types.h"
 
+#if ENABLED(RGB_LED_WS2812)
+    #include "WS2812.h"
+    WS2812 LED(9); // 9 LED
+    cRGB value;
+#endif
+
 #if HAS_ABL
   #include "vector_3.h"
   #if ENABLED(AUTO_BED_LEVELING_LINEAR)
@@ -972,7 +978,19 @@ void servo_init() {
 
       // This variant uses i2c to send the RGB components to the device.
       SendColors(r, g, b);
-
+      
+    #elif ENABLED(RGB_LED_WS2812)
+        value.b = b; value.g = g; value.r = r; // RGB Value -> Blue
+        LED.set_crgb_at(0, value); // Set value at LED found at index 0
+        LED.set_crgb_at(1, value);
+        LED.set_crgb_at(2, value);
+        LED.set_crgb_at(3, value);
+        LED.set_crgb_at(4, value);
+        LED.set_crgb_at(5, value);
+        LED.set_crgb_at(6, value);
+        LED.set_crgb_at(7, value);
+        LED.set_crgb_at(8, value);
+        LED.sync(); // Sends the value to the LED
     #else
 
       // This variant uses 3 separate pins for the RGB components.
@@ -12116,6 +12134,8 @@ void stop() {
  *    • status LEDs
  */
 void setup() {
+    
+  LED.setOutput(5); // Digital Pin 5
 
   #ifdef DISABLE_JTAG
     // Disable JTAG on AT90USB chips to free up pins for IO

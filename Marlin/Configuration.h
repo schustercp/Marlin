@@ -1485,6 +1485,7 @@
  * *** CAUTION ***
  *
  */
+#define RGB_LED_WS2812
 //#define RGB_LED
 //#define RGBW_LED
 #if ENABLED(RGB_LED) || ENABLED(RGBW_LED)
