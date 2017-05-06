@@ -590,7 +590,7 @@
  * Z Servo Probe, such as an endstop switch on a rotating arm.
  */
 #define Z_ENDSTOP_SERVO_NR 0
-#define Z_SERVO_ANGLES {150,20} // Z Servo Deploy and Stow angles
+#define Z_SERVO_ANGLES {1050, 2000} // Z Servo Deploy and Stow angles
 
 /**
  * The BLTouch probe is a Hall effect sensor that emulates a servo.
@@ -669,7 +669,7 @@
 #define Z_PROBE_OFFSET_RANGE_MAX 20
 
 // Enable the M48 repeatability test to test probe accuracy
-//#define Z_MIN_PROBE_REPEATABILITY_TEST
+#define Z_MIN_PROBE_REPEATABILITY_TEST
 
 // For Inverting Stepper Enable Pins (Active Low) use 0, Non Inverting (Active High) use 1
 // :{ 0:'Low', 1:'High' }
@@ -1168,6 +1168,7 @@
  * you must uncomment the following option or it won't work.
  *
  */
+#define SDSUPPORT
 
 /**
  * SD CARD: SPI SPEED
