@@ -25,11 +25,16 @@
  */
 
 #include "Marlin.h"
-#include "ultralcd.h"
 #include "temperature.h"
 #include "thermistortables.h"
+#include "ultralcd.h"
+#include "planner.h"
 #include "language.h"
-#include "spi.h"
+
+#if ENABLED(HEATER_0_USES_MAX6675)
+  #include "spi.h"
+#endif
+
 #if ENABLED(BABYSTEPPING)
   #include "stepper.h"
 #endif
@@ -60,10 +65,10 @@ Temperature thermalManager;
 
 float Temperature::current_temperature[HOTENDS] = { 0.0 },
       Temperature::current_temperature_bed = 0.0;
-int   Temperature::current_temperature_raw[HOTENDS] = { 0 },
-      Temperature::target_temperature[HOTENDS] = { 0 },
-      Temperature::current_temperature_bed_raw = 0,
-      Temperature::target_temperature_bed = 0;
+int16_t Temperature::current_temperature_raw[HOTENDS] = { 0 },
+        Temperature::target_temperature[HOTENDS] = { 0 },
+        Temperature::current_temperature_bed_raw = 0,
+        Temperature::target_temperature_bed = 0;
 
 #if ENABLED(TEMP_SENSOR_1_AS_REDUNDANT)
   float Temperature::redundant_temperature = 0.0;
@@ -160,33 +165,33 @@ volatile bool Temperature::temp_meas_ready = false;
   millis_t Temperature::next_bed_check_ms;
 #endif
 
-unsigned long Temperature::raw_temp_value[MAX_EXTRUDERS] = { 0 };
-unsigned long Temperature::raw_temp_bed_value = 0;
+uint16_t Temperature::raw_temp_value[MAX_EXTRUDERS] = { 0 },
+         Temperature::raw_temp_bed_value = 0;
 
 // Init min and max temp with extreme values to prevent false errors during startup
-int Temperature::minttemp_raw[HOTENDS] = ARRAY_BY_HOTENDS(HEATER_0_RAW_LO_TEMP , HEATER_1_RAW_LO_TEMP , HEATER_2_RAW_LO_TEMP, HEATER_3_RAW_LO_TEMP, HEATER_4_RAW_LO_TEMP),
-    Temperature::maxttemp_raw[HOTENDS] = ARRAY_BY_HOTENDS(HEATER_0_RAW_HI_TEMP , HEATER_1_RAW_HI_TEMP , HEATER_2_RAW_HI_TEMP, HEATER_3_RAW_HI_TEMP, HEATER_4_RAW_HI_TEMP),
-    Temperature::minttemp[HOTENDS] = { 0 },
-    Temperature::maxttemp[HOTENDS] = ARRAY_BY_HOTENDS1(16383);
+int16_t Temperature::minttemp_raw[HOTENDS] = ARRAY_BY_HOTENDS(HEATER_0_RAW_LO_TEMP , HEATER_1_RAW_LO_TEMP , HEATER_2_RAW_LO_TEMP, HEATER_3_RAW_LO_TEMP, HEATER_4_RAW_LO_TEMP),
+        Temperature::maxttemp_raw[HOTENDS] = ARRAY_BY_HOTENDS(HEATER_0_RAW_HI_TEMP , HEATER_1_RAW_HI_TEMP , HEATER_2_RAW_HI_TEMP, HEATER_3_RAW_HI_TEMP, HEATER_4_RAW_HI_TEMP),
+        Temperature::minttemp[HOTENDS] = { 0 },
+        Temperature::maxttemp[HOTENDS] = ARRAY_BY_HOTENDS1(16383);
 
 #ifdef MAX_CONSECUTIVE_LOW_TEMPERATURE_ERROR_ALLOWED
-  int Temperature::consecutive_low_temperature_error[HOTENDS] = { 0 };
+  uint8_t Temperature::consecutive_low_temperature_error[HOTENDS] = { 0 };
 #endif
 
 #ifdef MILLISECONDS_PREHEAT_TIME
-  unsigned long Temperature::preheat_end_time[HOTENDS] = { 0 };
+  millis_t Temperature::preheat_end_time[HOTENDS] = { 0 };
 #endif
 
 #ifdef BED_MINTEMP
-  int Temperature::bed_minttemp_raw = HEATER_BED_RAW_LO_TEMP;
+  int16_t Temperature::bed_minttemp_raw = HEATER_BED_RAW_LO_TEMP;
 #endif
 
 #ifdef BED_MAXTEMP
-  int Temperature::bed_maxttemp_raw = HEATER_BED_RAW_HI_TEMP;
+  int16_t Temperature::bed_maxttemp_raw = HEATER_BED_RAW_HI_TEMP;
 #endif
 
 #if ENABLED(FILAMENT_WIDTH_SENSOR)
-  int Temperature::meas_shift_index;  // Index of a delayed sample in buffer
+  int16_t Temperature::meas_shift_index;  // Index of a delayed sample in buffer
 #endif
 
 #if HAS_AUTO_FAN
@@ -865,15 +870,14 @@ void Temperature::manage_heater() {
     if (filament_sensor) {
       meas_shift_index = filwidth_delay_index[0] - meas_delay_cm;
       if (meas_shift_index < 0) meas_shift_index += MAX_MEASUREMENT_DELAY + 1;  //loop around buffer if needed
+      meas_shift_index = constrain(meas_shift_index, 0, MAX_MEASUREMENT_DELAY);
 
       // Get the delayed info and add 100 to reconstitute to a percent of
       // the nominal filament diameter then square it to get an area
-      meas_shift_index = constrain(meas_shift_index, 0, MAX_MEASUREMENT_DELAY);
-      float vm = pow((measurement_delay[meas_shift_index] + 100.0) * 0.01, 2);
-      NOLESS(vm, 0.01);
-      volumetric_multiplier[FILAMENT_SENSOR_EXTRUDER_NUM] = vm;
+      const float vmroot = measurement_delay[meas_shift_index] * 0.01 + 1.0;
+      volumetric_multiplier[FILAMENT_SENSOR_EXTRUDER_NUM] = vmroot <= 0.1 ? 0.01 : sq(vmroot);
     }
-  #endif //FILAMENT_WIDTH_SENSOR
+  #endif // FILAMENT_WIDTH_SENSOR
 
   #if DISABLED(PIDTEMPBED)
     if (PENDING(ms, next_bed_check_ms)) return;
@@ -1067,8 +1071,8 @@ void Temperature::updateTemperaturesFromRawValues() {
  */
 void Temperature::init() {
 
-  #if MB(RUMBA) && ((TEMP_SENSOR_0==-1)||(TEMP_SENSOR_1==-1)||(TEMP_SENSOR_2==-1)||(TEMP_SENSOR_BED==-1))
-    //disable RUMBA JTAG in case the thermocouple extension is plugged on top of JTAG connector
+  #if MB(RUMBA) && (TEMP_SENSOR_0 == -1 || TEMP_SENSOR_1 == -1 || TEMP_SENSOR_2 == -1 || TEMP_SENSOR_BED == -1)
+    // Disable RUMBA JTAG in case the thermocouple extension is plugged on top of JTAG connector
     MCUCR = _BV(JTD);
     MCUCR = _BV(JTD);
   #endif
@@ -1416,7 +1420,7 @@ void Temperature::init() {
     millis_t Temperature::thermal_runaway_bed_timer;
   #endif
 
-  void Temperature::thermal_runaway_protection(Temperature::TRState* state, millis_t* timer, float temperature, float target_temperature, int heater_id, int period_seconds, int hysteresis_degc) {
+  void Temperature::thermal_runaway_protection(Temperature::TRState* state, millis_t* timer, float current, float target, int heater_id, int period_seconds, int hysteresis_degc) {
 
     static float tr_target_temperature[HOTENDS + 1] = { 0.0 };
 
@@ -1426,17 +1430,17 @@ void Temperature::init() {
         if (heater_id < 0) SERIAL_ECHOPGM("bed"); else SERIAL_ECHO(heater_id);
         SERIAL_ECHOPAIR(" ;  State:", *state);
         SERIAL_ECHOPAIR(" ;  Timer:", *timer);
-        SERIAL_ECHOPAIR(" ;  Temperature:", temperature);
-        SERIAL_ECHOPAIR(" ;  Target Temp:", target_temperature);
+        SERIAL_ECHOPAIR(" ;  Temperature:", current);
+        SERIAL_ECHOPAIR(" ;  Target Temp:", target);
         SERIAL_EOL;
     */
 
     int heater_index = heater_id >= 0 ? heater_id : HOTENDS;
 
     // If the target temperature changes, restart
-    if (tr_target_temperature[heater_index] != target_temperature) {
-      tr_target_temperature[heater_index] = target_temperature;
-      *state = target_temperature > 0 ? TRFirstHeating : TRInactive;
+    if (tr_target_temperature[heater_index] != target) {
+      tr_target_temperature[heater_index] = target;
+      *state = target > 0 ? TRFirstHeating : TRInactive;
     }
 
     switch (*state) {
@@ -1444,11 +1448,11 @@ void Temperature::init() {
       case TRInactive: break;
       // When first heating, wait for the temperature to be reached then go to Stable state
       case TRFirstHeating:
-        if (temperature < tr_target_temperature[heater_index]) break;
+        if (current < tr_target_temperature[heater_index]) break;
         *state = TRStable;
       // While the temperature is stable watch for a bad temperature
       case TRStable:
-        if (temperature >= tr_target_temperature[heater_index] - hysteresis_degc) {
+        if (current >= tr_target_temperature[heater_index] - hysteresis_degc) {
           *timer = millis() + period_seconds * 1000UL;
           break;
         }
@@ -1462,6 +1466,11 @@ void Temperature::init() {
 #endif // THERMAL_PROTECTION_HOTENDS || THERMAL_PROTECTION_BED
 
 void Temperature::disable_all_heaters() {
+
+  #if ENABLED(AUTOTEMP)
+    planner.autotemp_enabled = false;
+  #endif
+
   HOTEND_LOOP() setTargetHotend(0, e);
   setTargetBed(0);
 
@@ -1565,7 +1574,7 @@ void Temperature::disable_all_heaters() {
       max6675_temp >>= MAX6675_DISCARD_BITS;
       #if ENABLED(MAX6675_IS_MAX31855)
         // Support negative temperature
-        if (max6675_temp & 0x00002000) max6675_temp |= 0xffffc000;
+        if (max6675_temp & 0x00002000) max6675_temp |= 0xFFFFC000;
       #endif
 
     return (int)max6675_temp;
@@ -2133,9 +2142,9 @@ void Temperature::isr() {
     };
 
     for (uint8_t e = 0; e < COUNT(temp_dir); e++) {
-      const int tdir = temp_dir[e], rawtemp = current_temperature_raw[e] * tdir;
-      if (rawtemp > maxttemp_raw[e] * tdir && target_temperature[e] > 0.0f) max_temp_error(e);
-      if (rawtemp < minttemp_raw[e] * tdir && !is_preheating(e) && target_temperature[e] > 0.0f) {
+      const int16_t tdir = temp_dir[e], rawtemp = current_temperature_raw[e] * tdir;
+      if (rawtemp > maxttemp_raw[e] * tdir && target_temperature[e] > 0) max_temp_error(e);
+      if (rawtemp < minttemp_raw[e] * tdir && !is_preheating(e) && target_temperature[e] > 0) {
         #ifdef MAX_CONSECUTIVE_LOW_TEMPERATURE_ERROR_ALLOWED
           if (++consecutive_low_temperature_error[e] >= MAX_CONSECUTIVE_LOW_TEMPERATURE_ERROR_ALLOWED)
         #endif
@@ -2157,9 +2166,8 @@ void Temperature::isr() {
       #else
         #define GEBED >=
       #endif
-      
-      if (current_temperature_bed_raw GEBED bed_maxttemp_raw && target_temperature_bed > 0.0f) max_temp_error(-1);
-      if (bed_minttemp_raw GEBED current_temperature_bed_raw && target_temperature_bed > 0.0f) min_temp_error(-1);
+      if (current_temperature_bed_raw GEBED bed_maxttemp_raw && target_temperature_bed > 0) max_temp_error(-1);
+      if (bed_minttemp_raw GEBED current_temperature_bed_raw && target_temperature_bed > 0) min_temp_error(-1);
     #endif
 
     temp_count = 0;

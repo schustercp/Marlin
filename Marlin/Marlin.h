@@ -228,32 +228,52 @@ extern volatile bool wait_for_heatup;
 extern float current_position[NUM_AXIS];
 
 // Workspace offsets
-#if DISABLED(NO_WORKSPACE_OFFSETS)
-  extern float position_shift[XYZ],
-               home_offset[XYZ],
-               workspace_offset[XYZ];
-  #define LOGICAL_POSITION(POS, AXIS) ((POS) + workspace_offset[AXIS])
-  #define RAW_POSITION(POS, AXIS)     ((POS) - workspace_offset[AXIS])
-#else
-  #define LOGICAL_POSITION(POS, AXIS) (POS)
-  #define RAW_POSITION(POS, AXIS)     (POS)
+#if HAS_WORKSPACE_OFFSET
+  #if HAS_HOME_OFFSET
+    extern float home_offset[XYZ];
+  #endif
+  #if HAS_POSITION_SHIFT
+    extern float position_shift[XYZ];
+  #endif
 #endif
 
-#define LOGICAL_X_POSITION(POS)     LOGICAL_POSITION(POS, X_AXIS)
-#define LOGICAL_Y_POSITION(POS)     LOGICAL_POSITION(POS, Y_AXIS)
-#define LOGICAL_Z_POSITION(POS)     LOGICAL_POSITION(POS, Z_AXIS)
-#define RAW_X_POSITION(POS)         RAW_POSITION(POS, X_AXIS)
-#define RAW_Y_POSITION(POS)         RAW_POSITION(POS, Y_AXIS)
-#define RAW_Z_POSITION(POS)         RAW_POSITION(POS, Z_AXIS)
-#define RAW_CURRENT_POSITION(AXIS)  RAW_POSITION(current_position[AXIS], AXIS)
+#if HAS_HOME_OFFSET && HAS_POSITION_SHIFT
+  extern float workspace_offset[XYZ];
+  #define WORKSPACE_OFFSET(AXIS) workspace_offset[AXIS]
+#elif HAS_HOME_OFFSET
+  #define WORKSPACE_OFFSET(AXIS) home_offset[AXIS]
+#elif HAS_POSITION_SHIFT
+  #define WORKSPACE_OFFSET(AXIS) position_shift[AXIS]
+#else
+  #define WORKSPACE_OFFSET(AXIS) 0
+#endif
 
+#define LOGICAL_POSITION(POS, AXIS) ((POS) + WORKSPACE_OFFSET(AXIS))
+#define RAW_POSITION(POS, AXIS)     ((POS) - WORKSPACE_OFFSET(AXIS))
+
+#if HAS_POSITION_SHIFT || DISABLED(DELTA)
+  #define LOGICAL_X_POSITION(POS)   LOGICAL_POSITION(POS, X_AXIS)
+  #define LOGICAL_Y_POSITION(POS)   LOGICAL_POSITION(POS, Y_AXIS)
+  #define RAW_X_POSITION(POS)       RAW_POSITION(POS, X_AXIS)
+  #define RAW_Y_POSITION(POS)       RAW_POSITION(POS, Y_AXIS)
+#else
+  #define LOGICAL_X_POSITION(POS)   (POS)
+  #define LOGICAL_Y_POSITION(POS)   (POS)
+  #define RAW_X_POSITION(POS)       (POS)
+  #define RAW_Y_POSITION(POS)       (POS)
+#endif
+
+#define LOGICAL_Z_POSITION(POS)     LOGICAL_POSITION(POS, Z_AXIS)
+#define RAW_Z_POSITION(POS)         RAW_POSITION(POS, Z_AXIS)
+#define RAW_CURRENT_POSITION(A)     RAW_##A##_POSITION(current_position[A##_AXIS])
+
+// Hotend Offsets
 #if HOTENDS > 1
   extern float hotend_offset[XYZ][HOTENDS];
 #endif
 
 // Software Endstops
-extern float soft_endstop_min[XYZ];
-extern float soft_endstop_max[XYZ];
+extern float soft_endstop_min[XYZ], soft_endstop_max[XYZ];
 
 #if HAS_SOFTWARE_ENDSTOPS
   extern bool soft_endstops_enabled;
@@ -263,15 +283,25 @@ extern float soft_endstop_max[XYZ];
   #define clamp_to_software_endstops(x) NOOP
 #endif
 
-#if DISABLED(NO_WORKSPACE_OFFSETS) || ENABLED(DUAL_X_CARRIAGE) || ENABLED(DELTA)
+#if HAS_WORKSPACE_OFFSET || ENABLED(DUAL_X_CARRIAGE)
   void update_software_endstops(const AxisEnum axis);
 #endif
 
 // GCode support for external objects
 bool code_seen(char);
 int code_value_int();
-float code_value_temp_abs();
-float code_value_temp_diff();
+int16_t code_value_temp_abs();
+int16_t code_value_temp_diff();
+
+#if ENABLED(INCH_MODE_SUPPORT)
+  float code_value_linear_units();
+  float code_value_axis_units(const AxisEnum axis);
+  float code_value_per_axis_unit(const AxisEnum axis);
+#else
+  #define code_value_linear_units() code_value_float()
+  #define code_value_axis_units(A) code_value_float()
+  #define code_value_per_axis_unit(A) code_value_float()
+#endif
 
 #if IS_KINEMATIC
   extern float delta[ABC];
@@ -282,9 +312,9 @@ float code_value_temp_diff();
   extern float endstop_adj[ABC],
                delta_radius,
                delta_diagonal_rod,
+               delta_calibration_radius,
                delta_segments_per_second,
-               delta_diagonal_rod_trim[ABC],
-               delta_tower_angle_trim[ABC],
+               delta_tower_angle_trim[2],
                delta_clip_start_height;
   void recalc_delta_settings(float radius, float diagonal_rod);
 #elif IS_SCARA
@@ -293,8 +323,9 @@ float code_value_temp_diff();
 
 #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
   extern int bilinear_grid_spacing[2], bilinear_start[2];
-  extern float bed_level_grid[GRID_MAX_POINTS_X][GRID_MAX_POINTS_Y];
-  float bilinear_z_offset(float logical[XYZ]);
+  extern float bilinear_grid_factor[2],
+               z_values[GRID_MAX_POINTS_X][GRID_MAX_POINTS_Y];
+  float bilinear_z_offset(const float logical[XYZ]);
   void set_bed_leveling_enabled(bool enable=true);
 #endif
 
@@ -303,7 +334,7 @@ float code_value_temp_diff();
   linear_fit* lsf_linear_fit(double x[], double y[], double z[], const int);
 #endif
 
-#if PLANNER_LEVELING
+#if HAS_LEVELING
   void reset_bed_level();
 #endif
 
@@ -330,7 +361,7 @@ float code_value_temp_diff();
 #endif
 
 #if FAN_COUNT > 0
-  extern int fanSpeeds[FAN_COUNT];
+  extern int16_t fanSpeeds[FAN_COUNT];
 #endif
 
 #if ENABLED(BARICUDA)

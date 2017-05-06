@@ -19,11 +19,11 @@ bool fastDigitalRead(uint8_t pin) {
  */
 static inline __attribute__((always_inline))
 void fastDigitalWrite(uint8_t pin, bool value) {
-	if (value) {
-		*portSetRegister(pin) = 1;
-	} else {
-		*portClearRegister(pin) = 1;
-	}
+  if (value) {
+    *portSetRegister(pin) = 1;
+  } else {
+    *portClearRegister(pin) = 1;
+  }
 }
 #else  // CORE_TEENSY
 //------------------------------------------------------------------------------
@@ -195,7 +195,7 @@ static const pin_map_t pinMap[] = {
 || defined(__AVR_ATmega324__)\
 || defined(__AVR_ATmega16__)
 
-#ifdef defined(VARIANT_MIGHTY)
+#if defined(VARIANT_MIGHTY)
 // Mighty Layout
 static const pin_map_t pinMap[] = {
   {&DDRB, &PINB, &PORTB, 0},  // B0  0
@@ -574,7 +574,7 @@ class DigitalPin {
   /** Parenthesis operator
    * @return Pin's level
    */
-	inline operator bool () const __attribute__((always_inline)) {
+  inline operator bool () const __attribute__((always_inline)) {
     return read();
   }
   //----------------------------------------------------------------------------

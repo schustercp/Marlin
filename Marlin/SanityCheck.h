@@ -77,7 +77,7 @@
 #elif defined(DISABLE_MAX_ENDSTOPS) || defined(DISABLE_MIN_ENDSTOPS)
   #error "DISABLE_MAX_ENDSTOPS and DISABLE_MIN_ENDSTOPS deprecated. Use individual USE_*_PLUG options instead."
 #elif ENABLED(Z_DUAL_ENDSTOPS) && !defined(Z2_USE_ENDSTOP)
-  #error "Z_DUAL_ENDSTOPS settings are simplified. Just set Z2_USE_ENDSTOP to the endstop you want to repurpose for Z2"
+  #error "Z_DUAL_ENDSTOPS settings are simplified. Just set Z2_USE_ENDSTOP to the endstop you want to repurpose for Z2."
 #elif defined(LANGUAGE_INCLUDE)
   #error "LANGUAGE_INCLUDE has been replaced by LCD_LANGUAGE. Please update your configuration."
 #elif defined(EXTRUDER_OFFSET_X) || defined(EXTRUDER_OFFSET_Y)
@@ -172,6 +172,10 @@
   #error "EXTRUDER_[0123]_AUTO_FAN_PIN is now E[0123]_AUTO_FAN_PIN. Please update your Configuration_adv.h."
 #elif defined(min_software_endstops) || defined(max_software_endstops)
   #error "(min|max)_software_endstops are now (MIN|MAX)_SOFTWARE_ENDSTOPS. Please update your configuration."
+#elif ENABLED(Z_PROBE_SLED) && defined(SLED_PIN)
+  #error "Replace SLED_PIN with SOL1_PIN (applies to both Z_PROBE_SLED and SOLENOID_PROBE)."
+#elif defined(CONTROLLERFAN_PIN)
+  #error "CONTROLLERFAN_PIN is now CONTROLLER_FAN_PIN, enabled with USE_CONTROLLER_FAN. Please update your Configuration_adv.h."
 #endif
 
 /**
@@ -459,6 +463,9 @@ static_assert(1 >= 0
   #if ENABLED(Z_PROBE_SLED)
     + 1
   #endif
+  #if ENABLED(SOLENOID_PROBE)
+    + 1
+  #endif
   , "Please enable only one probe: PROBE_MANUALLY, FIX_MOUNTED_PROBE, Z Servo, BLTOUCH, Z_PROBE_ALLEN_KEY, or Z_PROBE_SLED."
 );
 
@@ -470,6 +477,17 @@ static_assert(1 >= 0
    */
   #if ENABLED(Z_PROBE_SLED) && ENABLED(DELTA)
     #error "You cannot use Z_PROBE_SLED with DELTA."
+  #endif
+
+  /**
+   * SOLENOID_PROBE requirements
+   */
+  #if ENABLED(SOLENOID_PROBE)
+    #if ENABLED(EXT_SOLENOID)
+      #error "SOLENOID_PROBE is incompatible with EXT_SOLENOID."
+    #elif !HAS_SOLENOID_1
+      #error "SOLENOID_PROBE requires SOL1_PIN. It can be added to your Configuration.h."
+    #endif
   #endif
 
   /**
@@ -749,19 +767,21 @@ static_assert(1 >= 0
   #endif
 #endif
 
-#if HAS_FAN0 && CONTROLLERFAN_PIN == FAN_PIN
-  #error "You cannot set CONTROLLERFAN_PIN equal to FAN_PIN."
+#if HAS_FAN0 && CONTROLLER_FAN_PIN == FAN_PIN
+  #error "You cannot set CONTROLLER_FAN_PIN equal to FAN_PIN."
 #endif
 
-#if HAS_CONTROLLERFAN
-  #if E0_AUTO_FAN_PIN == CONTROLLERFAN_PIN
-    #error "You cannot set E0_AUTO_FAN_PIN equal to CONTROLLERFAN_PIN."
-  #elif E1_AUTO_FAN_PIN == CONTROLLERFAN_PIN
-    #error "You cannot set E1_AUTO_FAN_PIN equal to CONTROLLERFAN_PIN."
-  #elif E2_AUTO_FAN_PIN == CONTROLLERFAN_PIN
-    #error "You cannot set E2_AUTO_FAN_PIN equal to CONTROLLERFAN_PIN."
-  #elif E3_AUTO_FAN_PIN == CONTROLLERFAN_PIN
-    #error "You cannot set E3_AUTO_FAN_PIN equal to CONTROLLERFAN_PIN."
+#if ENABLED(USE_CONTROLLER_FAN)
+  #if !HAS_CONTROLLER_FAN
+    #error "USE_CONTROLLER_FAN requires a CONTROLLER_FAN_PIN. Define in Configuration_adv.h."
+  #elif E0_AUTO_FAN_PIN == CONTROLLER_FAN_PIN
+    #error "You cannot set E0_AUTO_FAN_PIN equal to CONTROLLER_FAN_PIN."
+  #elif E1_AUTO_FAN_PIN == CONTROLLER_FAN_PIN
+    #error "You cannot set E1_AUTO_FAN_PIN equal to CONTROLLER_FAN_PIN."
+  #elif E2_AUTO_FAN_PIN == CONTROLLER_FAN_PIN
+    #error "You cannot set E2_AUTO_FAN_PIN equal to CONTROLLER_FAN_PIN."
+  #elif E3_AUTO_FAN_PIN == CONTROLLER_FAN_PIN
+    #error "You cannot set E3_AUTO_FAN_PIN equal to CONTROLLER_FAN_PIN."
   #endif
 #endif
 
@@ -900,6 +920,8 @@ static_assert(1 >= 0
 #elif ENABLED(Z_DUAL_ENDSTOPS)
   #if !Z2_USE_ENDSTOP
     #error "You must set Z2_USE_ENDSTOP with Z_DUAL_ENDSTOPS."
+  #elif Z2_MAX_PIN == 0 && Z2_MIN_PIN == 0
+    #error "Z2_USE_ENDSTOP has been assigned to a nonexistent endstop!"
   #elif ENABLED(DELTA)
     #error "Z_DUAL_ENDSTOPS is not compatible with DELTA."
   #endif
@@ -1074,6 +1096,24 @@ static_assert(1 >= 0
   #endif
   , "Please select no more than one LCD controller option."
 );
+
+#if ENABLED(HAVE_TMC2130) && !( \
+       ENABLED(  X_IS_TMC2130 ) \
+    || ENABLED( X2_IS_TMC2130 ) \
+    || ENABLED(  Y_IS_TMC2130 ) \
+    || ENABLED( Y2_IS_TMC2130 ) \
+    || ENABLED(  Z_IS_TMC2130 ) \
+    || ENABLED( Z2_IS_TMC2130 ) \
+    || ENABLED( E0_IS_TMC2130 ) \
+    || ENABLED( E1_IS_TMC2130 ) \
+    || ENABLED( E2_IS_TMC2130 ) \
+    || ENABLED( E3_IS_TMC2130 ) )
+  #error "Choose at least one TMC2130 stepper."
+#endif
+
+#if ENABLED(HYBRID_THRESHOLD) && DISABLED(STEALTHCHOP)
+  #error "Enable STEALTHCHOP to use HYBRID_THRESHOLD."
+#endif
 
 /**
  * Require 4 or more elements in per-axis initializers
