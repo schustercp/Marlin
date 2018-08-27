@@ -203,7 +203,7 @@
       #define BTN_EN2      77
       #define BTN_ENC      78
 
-      #define SD_DETECT_PIN 81
+      #define SD_DETECT_PIN -1
 
     #endif // !VIKI2 && !miniVIKI
 
