@@ -9,7 +9,9 @@
 # any permanent changes to 'master'.
 #
 
-MFINFO=$(mfinfo "$@") || exit
+[[ $# < 2 && $1 != "-h" && $1 != "--help" ]] || { echo "Usage: `basename $0` [branch]" 1>&2 ; exit 1; }
+
+MFINFO=$(mfinfo "$@") || exit 1
 IFS=' ' read -a INFO <<< "$MFINFO"
 ORG=${INFO[0]}
 FORK=${INFO[1]}
@@ -22,33 +24,58 @@ if [[ $ORG != "MarlinFirmware" || $REPO != "MarlinDocumentation" ]]; then
   exit
 fi
 
-if [[ $BRANCH == "gh-pages" ]]; then
-  echo "Can't build from 'gh-pages.' Only the Jekyll branches (based on 'master')."
-  bundle exec jekyll serve --watch
-  exit
-fi
-
-if [[ $BRANCH != "master" ]]; then
-  echo "Don't forget to update and push 'master'!"
-  # GOJF Card
-  git stash
-fi
-
 # Check out the named branch (or stay in current)
 git checkout $BRANCH
 
-echo "Generating MarlinDocumentation..."
+if [[ $BRANCH == "gh-pages" ]]; then
+  echo "Can't build from 'gh-pages.' Only the Jekyll branches (based on 'master')."
+  exit
+fi
+
+echo "Stashing any changes to files..."
+echo "Don't forget to update and push 'master'!"
+# GOJF Card
+[[ $(git stash) != "No local "* ]] && HAS_STASH=1
 
 COMMIT=$( git log --format="%H" -n 1 )
 
 # Clean out changes and other junk in the branch
-git reset --hard
 git clean -d -f
 
 # Push 'master' to the fork and make a proper PR...
 if [[ $BRANCH == "master" ]]; then
 
-  if [[ $FORK == "MarlinFirmware" ]]; then
+  # Don't lose upstream changes!
+  git fetch upstream
+
+  # Rebase onto latest master
+  if git rebase upstream/master; then
+
+    # Allow working directly with the main fork
+    echo
+    echo -n "Pushing to origin/master... "
+    git push -f origin
+
+    echo
+    echo -n "Pushing to upstream/master... "
+    git push -f upstream
+
+  else
+
+    echo "Merge conflicts? Stopping here."
+    exit
+
+  fi
+
+else
+
+  if [ -z "$(git branch -vv | grep ^\* | grep \\[origin)" ]; then
+    firstpush
+  else
+    echo
+    echo -n "Pushing to origin/$BRANCH... "
+    git push -f origin
+  fi
 
     # Allow working directly with the main fork
     git push -f upstream
@@ -78,6 +105,9 @@ fi
 # mv ./_plugins/jekyll-press.rb-disabled ./_plugins/jekyll-press.rb
 # bundle install
 
+echo
+echo "Generating MarlinDocumentation..."
+
 # build the site statically and proof it
 bundle exec jekyll build --profile --trace --no-watch
 bundle exec htmlproofer ./_site --only-4xx --allow-hash-href --check-favicon --check-html --url-swap ".*marlinfw.org/:/"
@@ -90,7 +120,7 @@ rsync -av _site/ ${TMPFOLDER}/
 git reset --hard
 git clean -d -f
 
-# Sync built-site with gh-pages
+# Copy built-site into the gh-pages branch
 git checkout gh-pages
 rsync -av ${TMPFOLDER}/ ./
 
@@ -104,3 +134,5 @@ rm -rf ${TMPFOLDER}
 
 # Go back to the branch we started from
 git checkout $BRANCH
+
+[[ $HAS_STASH == 1 ]] && git stash pop

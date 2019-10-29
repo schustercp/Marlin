@@ -24,13 +24,14 @@
  * Croatian (Hrvatski)
  *
  * LCD Menu Messages
- * See also https://github.com/MarlinFirmware/Marlin/wiki/LCD-Language
+ * See also http://marlinfw.org/docs/development/lcd_language.html
  *
  */
 #ifndef LANGUAGE_HR_H
 #define LANGUAGE_HR_H
 
 #define DISPLAY_CHARSET_ISO10646_1 // use the better font on full graphic displays.
+#define CHARSIZE 2
 
 #define WELCOME_MSG                         MACHINE_NAME _UxGT(" spreman.")
 #define MSG_SD_INSERTED                     _UxGT("SD kartica umetnuta")
@@ -43,11 +44,11 @@
 #define MSG_AUTO_HOME_X                     _UxGT("Home-aj X")
 #define MSG_AUTO_HOME_Y                     _UxGT("Home-aj Y")
 #define MSG_AUTO_HOME_Z                     _UxGT("Home-aj Z")
+#define MSG_TMC_Z_CALIBRATION               _UxGT("Kalibriraj Z")
 #define MSG_LEVEL_BED_HOMING                _UxGT("Home-aj XYZ")
 #define MSG_LEVEL_BED_WAITING               _UxGT("Klikni za početak")
 #define MSG_LEVEL_BED_NEXT_POINT            _UxGT("Sljedeća točka")
 #define MSG_LEVEL_BED_DONE                  _UxGT("Niveliranje gotovo!")
-#define MSG_LEVEL_BED_CANCEL                _UxGT("Otkaži")
 #define MSG_SET_HOME_OFFSETS                _UxGT("Postavi home offsete")
 #define MSG_HOME_OFFSETS_APPLIED            _UxGT("Offsets postavljeni")
 #define MSG_SET_ORIGIN                      _UxGT("Postavi ishodište")
@@ -67,6 +68,7 @@
 #define MSG_EXTRUDE                         _UxGT("Extrude")
 #define MSG_RETRACT                         _UxGT("Retract")
 #define MSG_MOVE_AXIS                       _UxGT("Miči os")
+#define MSG_BED_LEVELING                    _UxGT("Niveliraj bed")
 #define MSG_LEVEL_BED                       _UxGT("Niveliraj bed")
 #define MSG_MOVE_X                          _UxGT("Miči X")
 #define MSG_MOVE_Y                          _UxGT("Miči Y")
@@ -94,9 +96,16 @@
 #define MSG_PID_C                           _UxGT("PID-C")
 #define MSG_SELECT                          _UxGT("Odaberi")
 #define MSG_ACC                             _UxGT("Accel")
-#define MSG_VX_JERK                         _UxGT("Vx-jerk")
-#define MSG_VY_JERK                         _UxGT("Vy-jerk")
-#define MSG_VZ_JERK                         _UxGT("Vz-jerk")
+#define MSG_JERK                            _UxGT("Jerk")
+#if IS_KINEMATIC
+  #define MSG_VA_JERK                       _UxGT("Va-jerk")
+  #define MSG_VB_JERK                       _UxGT("Vb-jerk")
+  #define MSG_VC_JERK                       _UxGT("Vc-jerk")
+#else
+  #define MSG_VA_JERK                       _UxGT("Vx-jerk")
+  #define MSG_VB_JERK                       _UxGT("Vy-jerk")
+  #define MSG_VC_JERK                       _UxGT("Vz-jerk")
+#endif
 #define MSG_VE_JERK                         _UxGT("Ve-jerk")
 #define MSG_VMAX                            _UxGT("Vmax ")
 #define MSG_VMIN                            _UxGT("Vmin")
@@ -104,9 +113,16 @@
 #define MSG_AMAX                            _UxGT("Amax ")
 #define MSG_A_RETRACT                       _UxGT("A-retract")
 #define MSG_A_TRAVEL                        _UxGT("A-travel")
-#define MSG_XSTEPS                          _UxGT("Xsteps/mm")
-#define MSG_YSTEPS                          _UxGT("Ysteps/mm")
-#define MSG_ZSTEPS                          _UxGT("Zsteps/mm")
+#define MSG_STEPS_PER_MM                    _UxGT("Steps/mm")
+#if IS_KINEMATIC
+  #define MSG_ASTEPS                        _UxGT("Asteps/mm")
+  #define MSG_BSTEPS                        _UxGT("Bsteps/mm")
+  #define MSG_CSTEPS                        _UxGT("Csteps/mm")
+#else
+  #define MSG_ASTEPS                        _UxGT("Xsteps/mm")
+  #define MSG_BSTEPS                        _UxGT("Ysteps/mm")
+  #define MSG_CSTEPS                        _UxGT("Zsteps/mm")
+#endif
 #define MSG_ESTEPS                          _UxGT("Esteps/mm")
 #define MSG_E1STEPS                         _UxGT("E1steps/mm")
 #define MSG_E2STEPS                         _UxGT("E2steps/mm")
@@ -133,7 +149,6 @@
 #define MSG_NO_CARD                         _UxGT("Nema SD kartice")
 #define MSG_DWELL                           _UxGT("Sleep...")
 #define MSG_USERWAIT                        _UxGT("Čekaj korisnika...")
-#define MSG_RESUMING                        _UxGT("Nastavljam print")
 #define MSG_PRINT_ABORTED                   _UxGT("Print otkazan")
 #define MSG_NO_MOVE                         _UxGT("No move.")
 #define MSG_KILLED                          _UxGT("KILLED. ")
@@ -166,16 +181,14 @@
 #define MSG_ERR_MINTEMP                     _UxGT("Err: MINTEMP")
 #define MSG_ERR_MAXTEMP_BED                 _UxGT("Err: MAXTEMP BED")
 #define MSG_ERR_MINTEMP_BED                 _UxGT("Err: MINTEMP BED")
-#define MSG_ERR_Z_HOMING                    _UxGT("G28 Z Forbidden")
+#define MSG_ERR_Z_HOMING                    MSG_HOME _UxGT(" ") MSG_X MSG_Y _UxGT(" ") MSG_FIRST
 #define MSG_HALTED                          _UxGT("PRINTER HALTED")
 #define MSG_PLEASE_RESET                    _UxGT("Please reset")
 #define MSG_SHORT_DAY                       _UxGT("d") // One character only
 #define MSG_SHORT_HOUR                      _UxGT("h") // One character only
 #define MSG_SHORT_MINUTE                    _UxGT("m") // One character only
 #define MSG_HEATING                         _UxGT("Grijanje...")
-#define MSG_HEATING_COMPLETE                _UxGT("Grijanje gotovo.")
-#define MSG_BED_HEATING                     _UxGT("Grijanje Bed-a.")
-#define MSG_BED_DONE                        _UxGT("Bed gotov.")
+#define MSG_BED_HEATING                     _UxGT("Grijanje Bed-a...")
 #define MSG_DELTA_CALIBRATE                 _UxGT("Delta Kalibracija")
 #define MSG_DELTA_CALIBRATE_X               _UxGT("Kalibriraj X")
 #define MSG_DELTA_CALIBRATE_Y               _UxGT("Kalibriraj Y")
@@ -189,8 +202,7 @@
 #define MSG_INFO_EXTRUDERS                  _UxGT("Extruderi")
 #define MSG_INFO_BAUDRATE                   _UxGT("Baud")
 #define MSG_INFO_PROTOCOL                   _UxGT("Protokol")
-#define MSG_LIGHTS_ON                       _UxGT("Upali osvjetljenje")
-#define MSG_LIGHTS_OFF                      _UxGT("Ugasi osvjetljenje")
+#define MSG_CASE_LIGHT                      _UxGT("Osvjetljenje")
 
 #if LCD_WIDTH >= 20
   #define MSG_INFO_PRINT_COUNT              _UxGT("Broj printova")
@@ -213,9 +225,6 @@
 #define MSG_DAC_PERCENT                     _UxGT("Driver %")
 #define MSG_DAC_EEPROM_WRITE                _UxGT("DAC EEPROM Write")
 
-#define MSG_FILAMENT_CHANGE_HEADER          _UxGT("CHANGE FILAMENT")
-#define MSG_FILAMENT_CHANGE_OPTION_HEADER   _UxGT("CHANGE OPTIONS:")
-#define MSG_FILAMENT_CHANGE_OPTION_EXTRUDE  _UxGT("Extrudiraj više")
 #define MSG_FILAMENT_CHANGE_OPTION_RESUME   _UxGT("Nastavi print")
 
 #if LCD_HEIGHT >= 4
@@ -230,8 +239,6 @@
   #define MSG_FILAMENT_CHANGE_INSERT_3        _UxGT("za nastavak...")
   #define MSG_FILAMENT_CHANGE_LOAD_1          _UxGT("Pričekaj")
   #define MSG_FILAMENT_CHANGE_LOAD_2          _UxGT("filament load")
-  #define MSG_FILAMENT_CHANGE_EXTRUDE_1       _UxGT("Pričekaj")
-  #define MSG_FILAMENT_CHANGE_EXTRUDE_2       _UxGT("filament extrude")
   #define MSG_FILAMENT_CHANGE_RESUME_1        _UxGT("Wait for print")
   #define MSG_FILAMENT_CHANGE_RESUME_2        _UxGT("to resume")
 #else // LCD_HEIGHT < 4
@@ -240,7 +247,6 @@
   #define MSG_FILAMENT_CHANGE_UNLOAD_1        _UxGT("Ejecting...")
   #define MSG_FILAMENT_CHANGE_INSERT_1        _UxGT("Insert and Click")
   #define MSG_FILAMENT_CHANGE_LOAD_1          _UxGT("Loading...")
-  #define MSG_FILAMENT_CHANGE_EXTRUDE_1       _UxGT("Extrudiranje...")
   #define MSG_FILAMENT_CHANGE_RESUME_1        _UxGT("Nastavljam...")
 #endif // LCD_HEIGHT < 4
 
