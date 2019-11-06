@@ -280,8 +280,9 @@
 #endif
 
 #if HAS_ABL
-#if ENABLED(AUTO_POWER_CONTROL)
-  #include "power.h"
+  #if ENABLED(AUTO_POWER_CONTROL)
+    #include "power.h"
+  #endif
 #endif
 
 #if ABL_PLANAR
@@ -8980,6 +8981,75 @@ inline void gcode_M109() {
 
 #endif // HAS_HEATED_BED
 
+#if HAS_HEATER_CHAMBER
+inline void gcode_M141()
+{
+  if (parser.seenval('S')) thermalManager.setTargetChamber(parser.value_celsius());
+}
+
+inline void gcode_M191()
+{
+  const bool no_wait_for_cooling = parser.seenval('S');
+  if (no_wait_for_cooling || parser.seenval('R')) 
+  {
+    thermalManager.setTargetBed(parser.value_celsius());
+  }
+  else 
+  {
+    return;
+  }
+
+  lcd_setstatusPGM(thermalManager.isHeatingChamber() ? PSTR("Chamber heating...") : PSTR("Chamber cooling..."));
+
+  float target_temp = -1.0, old_temp = 9999.0;
+  bool wants_to_cool = false;
+  wait_for_heatup = true;
+  millis_t now, next_temp_ms = 0, next_cool_check_ms = 0;
+
+  target_extruder = active_extruder; // for print_heaterstates
+
+  do {
+    // Target temperature might be changed during the loop
+    if (target_temp != thermalManager.degTargetChamber()) {
+      wants_to_cool = thermalManager.isCoolingChamber();
+      target_temp = thermalManager.degTargetChamber();
+
+      // Exit if S<lower>, continue if S<higher>, R<lower>, or R<higher>
+      if (no_wait_for_cooling && wants_to_cool) break;
+    }
+
+    now = millis();
+    if (ELAPSED(now, next_temp_ms))
+    { //Print Temp Reading every 1 second while heating up.
+      next_temp_ms = now + 1000UL;
+      thermalManager.print_heaterstates();
+      SERIAL_EOL();
+    }
+
+    idle();
+    reset_stepper_timeout(); // Keep steppers powered
+
+    const float temp = thermalManager.degChamber();
+
+    // Prevent a wait-forever situation if R is misused i.e. M190 R0
+    if (wants_to_cool) 
+    {
+      // Break after MIN_COOLING_SLOPE_TIME_BED seconds
+      // if the temperature did not drop at least MIN_COOLING_SLOPE_DEG_BED
+      if (!next_cool_check_ms || ELAPSED(now, next_cool_check_ms)) 
+      {
+        if (old_temp - temp < float(0.5)) break;
+        next_cool_check_ms = now + 1000UL * 60;
+        old_temp = temp;
+      }
+    }
+
+  } while (wait_for_heatup && (wants_to_cool ? thermalManager.isCoolingChamber() : thermalManager.isHeatingChamber()));
+
+  if (wait_for_heatup) lcd_reset_status();
+}
+#endif
+
 /**
  * M110: Set Current Line Number
  */
@@ -13117,6 +13187,11 @@ void process_parsed_command() {
       #if HAS_HEATED_BED
         case 140: gcode_M140(); break;                            // M140: Set Bed Temperature
         case 190: gcode_M190(); break;                            // M190: Set Bed Temperature. Wait for target.
+      #endif
+
+      #if HAS_HEATER_CHAMBER
+        case 141: gcode_M141(); break; 
+        case 191: gcode_M191(); break;
       #endif
 
       #if FAN_COUNT > 0

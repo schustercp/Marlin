@@ -142,6 +142,7 @@
 // Disabling this will result in the timer driven soft PWM driving the heaters.
 #define HARD_PWM
 #define HARDWARE_PWM
+#define HEATED_CHAMBER
 
 // Optional custom name for your RepStrap or other custom machine
 // Displayed in the LCD "Ready" message
@@ -158,7 +159,7 @@
 #define EXTRUDERS 1
 
 // Generally expected filament diameter (1.75, 2.85, 3.0, ...). Used for Volumetric, Filament Width Sensor, etc.
-#define DEFAULT_NOMINAL_FILAMENT_DIA 3.0
+#define DEFAULT_NOMINAL_FILAMENT_DIA 1.75
 
 // For Cyclops or any "multi-extruder" that shares a single nozzle.
 //#define SINGLENOZZLE
@@ -374,7 +375,7 @@
 
 // Comment the following line to disable PID and enable bang-bang.
 #define PIDTEMP
-#define BANG_MAX 0x3FF   // Limits current to nozzle while in bang-bang mode; 255=full current
+#define BANG_MAX 0xFFFF   // Limits current to nozzle while in bang-bang mode; 255=full current
 #define PID_MAX BANG_MAX // Limits current to nozzle while PID is active (see PID_FUNCTIONAL_RANGE below); 255=full current
 #define PID_K1 0.95      // Smoothing factor within any PID loop
 
@@ -434,7 +435,7 @@
  * When set to any value below 255, enables a form of PWM to the bed that acts like a divider
  * so don't use it unless you are OK with PWM on your bed. (See the comment on enabling PIDTEMPBED)
  */
-#define MAX_BED_POWER 0x3FF // limits duty cycle to bed; 255=full current
+#define MAX_BED_POWER 0x3F // limits duty cycle to bed; 255=full current (8 Bit Timer so 0xFF == 100%)
 
 #if ENABLED(PIDTEMPBED)
 
@@ -454,6 +455,18 @@
 
   // FIND YOUR OWN: "M303 E-1 C8 S90" to run autotune on the bed at 90 degreesC for 8 cycles.
 #endif // PIDTEMPBED
+
+#define PIDTEMPCHAMBER
+
+#if ENABLED(PIDTEMPCHAMBER)
+
+  #define PID_CHAMBER_DEBUG
+
+  #define  DEFAULT_chamberKp 100.0
+  #define  DEFAULT_chamberKi 25.0
+  #define  DEFAULT_chamberKd 500.0
+
+#endif // PIDTEMPCHAMBER
 
 // @section extruder
 
@@ -732,7 +745,7 @@
 /**
  * Z Servo Probe, such as an endstop switch on a rotating arm.
  */
-#define Z_ENDSTOP_SERVO_NR 0
+#define Z_PROBE_SERVO_NR 0
 #define Z_SERVO_ANGLES {1050, 2000} // Z Servo Deploy and Stow angles
 
 /**
@@ -1036,7 +1049,7 @@
   // #define RIGHT_PROBE_BED_POSITION 190
   // #define FRONT_PROBE_BED_POSITION 15
   // #define BACK_PROBE_BED_POSITION 190
-  #define LEFT_PROBE_BED_POSITION MIN_PROBE_EDGE
+  #define LEFT_PROBE_BED_POSITION (33 + MIN_PROBE_EDGE)
   #define RIGHT_PROBE_BED_POSITION (X_BED_SIZE - MIN_PROBE_EDGE)
   #define FRONT_PROBE_BED_POSITION MIN_PROBE_EDGE
   #define BACK_PROBE_BED_POSITION (Y_BED_SIZE - MIN_PROBE_EDGE)
@@ -1430,7 +1443,7 @@
  *
  * :['JAPANESE', 'WESTERN', 'CYRILLIC']
  */
-#define DISPLAY_CHARSET_HD44780 JAPANESE
+#define DISPLAY_CHARSET_HD44780 WESTERN
 
 /**
  * SD CARD
@@ -1511,7 +1524,7 @@
 //
 // Add individual axis homing items (Home X, Home Y, and Home Z) to the LCD menu.
 //
-//#define INDIVIDUAL_AXIS_HOMING_MENU
+#define INDIVIDUAL_AXIS_HOMING_MENU
 
 //
 // SPEAKER/BUZZER

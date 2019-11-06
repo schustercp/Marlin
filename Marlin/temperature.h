@@ -125,7 +125,6 @@ class Temperature {
     static float current_temperature[HOTENDS];
     static int16_t current_temperature_raw[HOTENDS],
                    target_temperature[HOTENDS];
-    static uint8_t soft_pwm_amount[HOTENDS];
 
     #if ENABLED(AUTO_POWER_E_FANS)
       static int16_t autofan_speed[HOTENDS];
@@ -133,8 +132,9 @@ class Temperature {
 
     #ifndef HARDWARE_PWM
     static uint8_t soft_pwm_bed;
+    static uint8_t soft_pwm_amount[HOTENDS];
     #else
-    static uint16_t hard_pwm_bed;
+    static uint8_t hard_pwm_bed;
     #endif
 
     #if ENABLED(FAN_SOFT_PWM)
@@ -167,10 +167,19 @@ class Temperature {
     #if HAS_HEATED_BED
       static float current_temperature_bed;
       static int16_t current_temperature_bed_raw, target_temperature_bed;
+
+      #ifndef HARDWARE_PWM
       static uint8_t soft_pwm_amount_bed;
+      #endif
+      
       #if ENABLED(PIDTEMPBED)
         static float bedKp, bedKi, bedKd;
       #endif
+    #endif
+
+    #if HAS_HEATER_CHAMBER
+      static uint8_t soft_pwm_chamber;
+      static int16_t target_temperature_chamber;
     #endif
 
     #if ENABLED(BABYSTEPPING)
@@ -234,6 +243,15 @@ class Temperature {
       static bool pid_reset[HOTENDS];
     #endif
 
+    #if ENABLED(PIDTEMPCHAMBER)
+      static float temp_iState_chamber;
+      static float temp_dState_chamber;
+      static float pTerm_chamber;
+      static float iTerm_chamber;
+      static float dTerm_chamber;
+      static float pid_error_chamber;
+    #endif
+
     // Init min and max temp with extreme values to prevent false errors during startup
     static int16_t minttemp_raw[HOTENDS],
                    maxttemp_raw[HOTENDS],
@@ -294,6 +312,7 @@ class Temperature {
       static uint8_t soft_pwm[HOTENDS];
     #else
       static uint16_t hard_pwm[HOTENDS];
+    #endif
       
     #if ENABLED(FILAMENT_WIDTH_SENSOR)
       static uint16_t current_raw_filwidth; // Measured filament diameter - one extruder only
@@ -408,8 +427,6 @@ class Temperature {
       return target_temperature[HOTEND_INDEX];
     }
 
-    static int16_t degTargetBed() { return target_temperature_bed; }
-
     #if WATCH_HOTENDS
       static void start_watching_heater(const uint8_t e = 0);
     #endif
@@ -430,13 +447,6 @@ class Temperature {
       target_temperature[HOTEND_INDEX] = MIN(celsius, maxttemp[HOTEND_INDEX] - 15);
       #if WATCH_HOTENDS
         start_watching_heater(HOTEND_INDEX);
-      #endif
-    }
-
-    static void setTargetBed(const int16_t celsius) {
-      target_temperature_bed = celsius;
-      #if WATCH_THE_BED
-        start_watching_bed();
       #endif
     }
 
@@ -489,6 +499,17 @@ class Temperature {
         FORCE_INLINE static int16_t rawChamberTemp() { return current_temperature_chamber_raw; }
       #endif
       FORCE_INLINE static float degChamber() { return current_temperature_chamber; }
+
+      #if defined(HEATED_CHAMBER) && HAS_HEATER_CHAMBER
+        FORCE_INLINE static int16_t degTargetChamber()  { return target_temperature_chamber; }
+        FORCE_INLINE static bool isHeatingChamber()     { return target_temperature_chamber > current_temperature_chamber; }
+        FORCE_INLINE static bool isCoolingChamber()     { return target_temperature_chamber < current_temperature_chamber; }
+
+        static void setTargetChamber(const int16_t celsius) 
+        {
+          target_temperature_chamber = MIN(celsius, 60);
+        }
+      #endif
     #endif
 
     FORCE_INLINE static bool wait_for_heating(const uint8_t e) {
@@ -646,6 +667,10 @@ class Temperature {
       static float get_pid_output_bed();
     #endif
 
+    #if ENABLED(PIDTEMPCHAMBER)
+      static float get_pid_output_chamber();
+    #endif
+
     static void _temp_error(const int8_t e, const char * const serial_msg, const char * const lcd_msg);
     static void min_temp_error(const int8_t e);
     static void max_temp_error(const int8_t e);
@@ -667,6 +692,11 @@ class Temperature {
       #endif
 
     #endif // THERMAL_PROTECTION
+
+    static TRState thermal_runaway_chamber_state_machine;
+    static millis_t thermal_runaway_chamber_timer;
+
+    static void thermal_runaway_protection_chamber(const float &current, const float &target, const uint16_t period_seconds, const uint16_t hysteresis_degc);
 
 };
 

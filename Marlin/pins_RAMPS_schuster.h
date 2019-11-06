@@ -60,9 +60,9 @@
 #define Z_MIN_PIN          18
 #define Z_MAX_PIN          19
 
-#define E2_STEP_PIN        42
-#define E2_DIR_PIN         40
-#define E2_ENABLE_PIN      44
+//#define E2_STEP_PIN        42
+//#define E2_DIR_PIN         40
+//#define E2_ENABLE_PIN      44
 
 #define E1_STEP_PIN        26
 #define E1_DIR_PIN         28
@@ -89,10 +89,12 @@
 #define HEATER_2_PWM     OCR4C
 
 #define TEMP_0_PIN         14   // ANALOG NUMBERING
-#define TEMP_1_PIN         13   // ANALOG NUMBERING
-#define TEMP_2_PIN         12   // ANALOG NUMBERING
+#define TEMP_1_PIN         -1   // ANALOG NUMBERING
+#define TEMP_2_PIN         -1   // ANALOG NUMBERING
 #define TEMP_3_PIN         -1   // ANALOG NUMBERING
 #define TEMP_4_PIN         -1   // ANALOG NUMBERING
+#define TEMP_CHAMBER_PIN   13   // Analog Input
+#define HEATER_CHAMBER_PIN 40
 
 #define HEATER_BED_PIN     10
 #define TEMP_BED_PIN       15   // ANALOG NUMBERING
