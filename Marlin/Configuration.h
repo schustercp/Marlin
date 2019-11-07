@@ -357,6 +357,7 @@
 #define HEATER_3_MINTEMP 5
 #define HEATER_4_MINTEMP 5
 #define BED_MINTEMP 5
+#define CHAMBER_MINTEMP 5
 
 // When temperature exceeds max temp, your heater will be switched off.
 // This feature exists to protect your hotend from overheating accidentally, but *NOT* from thermistor short/failure!
@@ -367,6 +368,7 @@
 #define HEATER_3_MAXTEMP 300
 #define HEATER_4_MAXTEMP 275
 #define BED_MAXTEMP 150
+#define CHAMBER_MAXTEMP 60
 
 //===========================================================================
 //============================= PID Settings ================================
@@ -391,21 +393,9 @@
 
   // If you are using a pre-configured hotend then you can use one of the value sets by uncommenting it
 
-  // Ultimaker
   #define  DEFAULT_Kp 56.0
   #define  DEFAULT_Ki 4.0
   #define  DEFAULT_Kd 210.0
-
-
-  // MakerGear
-  //#define DEFAULT_Kp 7.0
-  //#define DEFAULT_Ki 0.1
-  //#define DEFAULT_Kd 12
-
-  // Mendel Parts V9 on 12V
-  //#define DEFAULT_Kp 63.0
-  //#define DEFAULT_Ki 2.25
-  //#define DEFAULT_Kd 440
 
 #endif // PIDTEMP
 
@@ -441,29 +431,20 @@
 
   //#define PID_BED_DEBUG // Sends debug data to the serial port.
 
-  //120V 250W silicone heater into 4mm borosilicate (MendelMax 1.5+)
-  //from FOPDT model - kp=.39 Tp=405 Tdead=66, Tc set to 79.2, aggressive factor of .15 (vs .1, 1, 10)
   #define  DEFAULT_bedKp 100.0
   #define  DEFAULT_bedKi 25.0
   #define  DEFAULT_bedKd 500.0
 
-  //120V 250W silicone heater into 4mm borosilicate (MendelMax 1.5+)
-  //from pidautotune
-  //#define DEFAULT_bedKp 97.1
-  //#define DEFAULT_bedKi 1.41
-  //#define DEFAULT_bedKd 1675.16
-
-  // FIND YOUR OWN: "M303 E-1 C8 S90" to run autotune on the bed at 90 degreesC for 8 cycles.
 #endif // PIDTEMPBED
 
 #define PIDTEMPCHAMBER
 
 #if ENABLED(PIDTEMPCHAMBER)
 
-  #define PID_CHAMBER_DEBUG
+  //#define PID_CHAMBER_DEBUG
 
-  #define  DEFAULT_chamberKp 100.0
-  #define  DEFAULT_chamberKi 25.0
+  #define  DEFAULT_chamberKp 1.0
+  #define  DEFAULT_chamberKi 0.001
   #define  DEFAULT_chamberKd 500.0
 
 #endif // PIDTEMPCHAMBER
@@ -506,6 +487,7 @@
 
 #define THERMAL_PROTECTION_HOTENDS // Enable thermal protection for all extruders
 #define THERMAL_PROTECTION_BED     // Enable thermal protection for the heated bed
+#define THERMAL_PROTECTION_CHAMBER // Enable thermal protection for the heated chamber
 
 //===========================================================================
 //============================= Mechanical Settings =========================
@@ -1925,7 +1907,7 @@
  *  - Change to green once print has finished
  *  - Turn off after the print has finished and the user has pushed a button
  */
-#if ENABLED(BLINKM) || ENABLED(RGB_LED) || ENABLED(RGBW_LED) || ENABLED(PCA9632) || ENABLED(NEOPIXEL_LED)
+#if (ENABLED(BLINKM) || ENABLED(RGB_LED) || ENABLED(RGBW_LED) || ENABLED(PCA9632) || ENABLED(NEOPIXEL_LED) || defined(RGB_LED_WS2812))
   #define PRINTER_EVENT_LEDS
 #endif
 

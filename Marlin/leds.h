@@ -33,6 +33,10 @@
   #include "neopixel.h"
 #endif
 
+#if defined(RGB_LED_WS2812)
+    #include "WS2812.h"
+#endif
+
 #define HAS_WHITE_LED (ENABLED(RGBW_LED) || ENABLED(NEOPIXEL_LED))
 
 /**
@@ -176,6 +180,10 @@ public:
     static bool lights_on; // the last set color was "on"
     static void toggle();  // swap "off" with color
     FORCE_INLINE static void update() { set_color(color); }
+  #endif
+
+  #if defined(RGB_LED_WS2812)
+    static WS2812 WS2812_LED;
   #endif
 };
 

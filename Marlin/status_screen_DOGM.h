@@ -51,6 +51,8 @@ FORCE_INLINE void _draw_heater_status(const uint8_t x, const int8_t heater, cons
     constexpr bool isBed = false;
   #endif
 
+  const bool isChamber = (heater == 0x7F);
+
   if (PAGE_UNDER(7)) {
     #if HEATER_IDLE_HANDLER
       const bool is_idle = (
@@ -66,7 +68,7 @@ FORCE_INLINE void _draw_heater_status(const uint8_t x, const int8_t heater, cons
             #if HAS_HEATED_BED
               isBed ? thermalManager.degTargetBed() :
             #endif
-            thermalManager.degTargetHotend(heater)
+            isChamber ? thermalManager.degTargetChamber() : thermalManager.degTargetHotend(heater)
           ), x, 7
         );
   }
@@ -76,7 +78,7 @@ FORCE_INLINE void _draw_heater_status(const uint8_t x, const int8_t heater, cons
         #if HAS_HEATED_BED
           isBed ? thermalManager.degBed() :
         #endif
-        thermalManager.degHotend(heater)
+        isChamber ? thermalManager.degChamber() : thermalManager.degHotend(heater)
       ), x, 28
     );
 
@@ -258,6 +260,8 @@ static void lcd_implementation_status_screen() {
   if (PAGE_UNDER(28)) {
     // Extruders
     HOTEND_LOOP() _draw_heater_status(STATUS_SCREEN_HOTEND_TEXT_X(e), e, blink);
+
+    _draw_heater_status(STATUS_SCREEN_HOTEND_TEXT_X(2), 0x7F, blink);
 
     // Heated bed
     #if HOTENDS < 4 && HAS_HEATED_BED

@@ -178,7 +178,6 @@ class Temperature {
     #endif
 
     #if HAS_HEATER_CHAMBER
-      static uint8_t soft_pwm_chamber;
       static int16_t target_temperature_chamber;
     #endif
 
@@ -285,11 +284,18 @@ class Temperature {
         static int16_t bed_maxttemp_raw;
       #endif
     #endif
-
+    
     #if HAS_TEMP_CHAMBER
       static uint16_t raw_temp_chamber_value;
       static float current_temperature_chamber;
       static int16_t current_temperature_chamber_raw;
+
+      #ifdef CHAMBER_MINTEMP
+        static int16_t chamber_minttemp_raw;
+      #endif
+      #ifdef CHAMBER_MAXTEMP
+        static int16_t chamber_maxttemp_raw;
+      #endif
     #endif
 
     #ifdef MAX_CONSECUTIVE_LOW_TEMPERATURE_ERROR_ALLOWED
@@ -494,7 +500,7 @@ class Temperature {
       #endif
     #endif
 
-    #if HAS_TEMP_CHAMBER
+    #if HAS_HEATED_CHAMBER
       #if ENABLED(SHOW_TEMP_ADC_VALUES)
         FORCE_INLINE static int16_t rawChamberTemp() { return current_temperature_chamber_raw; }
       #endif
@@ -507,7 +513,7 @@ class Temperature {
 
         static void setTargetChamber(const int16_t celsius) 
         {
-          target_temperature_chamber = MIN(celsius, 60);
+          target_temperature_chamber = MIN(celsius, CHAMBER_MAXTEMP);
         }
       #endif
     #endif
@@ -667,15 +673,11 @@ class Temperature {
       static float get_pid_output_bed();
     #endif
 
-    #if ENABLED(PIDTEMPCHAMBER)
-      static float get_pid_output_chamber();
-    #endif
-
     static void _temp_error(const int8_t e, const char * const serial_msg, const char * const lcd_msg);
     static void min_temp_error(const int8_t e);
     static void max_temp_error(const int8_t e);
 
-    #if ENABLED(THERMAL_PROTECTION_HOTENDS) || HAS_THERMALLY_PROTECTED_BED
+    #if ENABLED(THERMAL_PROTECTION_HOTENDS) || HAS_THERMALLY_PROTECTED_BED || HAS_THERMALLY_PROTECTED_CHAMBER
 
       enum TRState : char { TRInactive, TRFirstHeating, TRStable, TRRunaway };
 
@@ -691,13 +693,14 @@ class Temperature {
         static millis_t thermal_runaway_bed_timer;
       #endif
 
+      #if HAS_THERMALLY_PROTECTED_CHAMBER
+        static TRState thermal_runaway_chamber_state_machine;
+        static millis_t thermal_runaway_chamber_timer;
+
+        static void thermal_runaway_protection_chamber(const float &current, const float &target, const uint16_t period_seconds, const uint16_t hysteresis_degc);
+      #endif
+
     #endif // THERMAL_PROTECTION
-
-    static TRState thermal_runaway_chamber_state_machine;
-    static millis_t thermal_runaway_chamber_timer;
-
-    static void thermal_runaway_protection_chamber(const float &current, const float &target, const uint16_t period_seconds, const uint16_t hysteresis_degc);
-
 };
 
 extern Temperature thermalManager;

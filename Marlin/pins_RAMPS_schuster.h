@@ -111,6 +111,8 @@
 #define BTN_EN2            33
 #define BTN_ENC            35
 #define SD_DETECT_PIN      49
+#define RGB_LED_WS2812_PIN 5
+#define NUM_RGB_LED_WS2812 9
 
 #ifdef NUM_SERVOS
 	#define SERVO0_PIN         11

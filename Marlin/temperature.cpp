@@ -67,13 +67,24 @@ Temperature thermalManager;
  * elimination should (hopefully) optimize out the unused strings.
  */
 #if HAS_HEATED_BED
-  #define TEMP_ERR_PSTR(MSG, E) \
-    (E) == -1 ? PSTR(MSG ## _BED) : \
-    (HOTENDS > 1 && (E) == 1) ? PSTR(MSG_E2 " " MSG) : \
-    (HOTENDS > 2 && (E) == 2) ? PSTR(MSG_E3 " " MSG) : \
-    (HOTENDS > 3 && (E) == 3) ? PSTR(MSG_E4 " " MSG) : \
-    (HOTENDS > 4 && (E) == 4) ? PSTR(MSG_E5 " " MSG) : \
-    PSTR(MSG_E1 " " MSG)
+  #if HAS_HEATED_CHAMBER
+    #define TEMP_ERR_PSTR(MSG, E) \
+      (E) == -1 ? PSTR(MSG ## _BED) : \
+      (E) == 0x7F ? PSTR(MSG ## _CHAMBER) : \
+      (HOTENDS > 1 && (E) == 1) ? PSTR(MSG_E2 " " MSG) : \
+      (HOTENDS > 2 && (E) == 2) ? PSTR(MSG_E3 " " MSG) : \
+      (HOTENDS > 3 && (E) == 3) ? PSTR(MSG_E4 " " MSG) : \
+      (HOTENDS > 4 && (E) == 4) ? PSTR(MSG_E5 " " MSG) : \
+      PSTR(MSG_E1 " " MSG)
+  #else
+    #define TEMP_ERR_PSTR(MSG, E) \
+      (E) == -1 ? PSTR(MSG ## _BED) : \
+      (HOTENDS > 1 && (E) == 1) ? PSTR(MSG_E2 " " MSG) : \
+      (HOTENDS > 2 && (E) == 2) ? PSTR(MSG_E3 " " MSG) : \
+      (HOTENDS > 3 && (E) == 3) ? PSTR(MSG_E4 " " MSG) : \
+      (HOTENDS > 4 && (E) == 4) ? PSTR(MSG_E5 " " MSG) : \
+      PSTR(MSG_E1 " " MSG)
+  #endif
 #else
   #define TEMP_ERR_PSTR(MSG, E) \
     (HOTENDS > 1 && (E) == 1) ? PSTR(MSG_E2 " " MSG) : \
@@ -106,11 +117,6 @@ uint8_t Temperature::hard_pwm_bed = 0;
 
   #ifndef HARDWARE_PWM
   uint8_t Temperature::soft_pwm_amount_bed;
-  #endif
-
-  #if defined(HEATED_CHAMBER) && HAS_HEATER_CHAMBER
-  uint8_t Temperature::soft_pwm_chamber = 0;
-  int16_t Temperature::target_temperature_chamber = 0;
   #endif
 
   #ifdef BED_MINTEMP
@@ -155,6 +161,17 @@ uint8_t Temperature::hard_pwm_bed = 0;
   float Temperature::current_temperature_chamber = 0.0;
   int16_t Temperature::current_temperature_chamber_raw = 0;
   uint16_t Temperature::raw_temp_chamber_value = 0;
+#endif
+
+#if HAS_HEATED_CHAMBER
+  int16_t Temperature::target_temperature_chamber = 0;
+
+  #ifdef CHAMBER_MINTEMP
+    int16_t Temperature::chamber_minttemp_raw = HEATER_CHAMBER_RAW_LO_TEMP;
+  #endif
+  #ifdef CHAMBER_MAXTEMP
+    int16_t Temperature::chamber_maxttemp_raw = HEATER_CHAMBER_RAW_HI_TEMP;
+  #endif
 #endif
 
 // Initialized by settings.load()
@@ -694,7 +711,12 @@ void Temperature::_temp_error(const int8_t e, const char * const serial_msg, con
     SERIAL_ERROR_START();
     serialprintPGM(serial_msg);
     SERIAL_ERRORPGM(MSG_STOPPED_HEATER);
-    if (e >= 0) SERIAL_ERRORLN((int)e); else SERIAL_ERRORLNPGM(MSG_HEATER_BED);
+    if (e == 0x7F)
+     SERIAL_ERRORLNPGM(MSG_HEATER_CHAMBER);
+    else if (e >= 0)
+     SERIAL_ERRORLN((int)e); 
+    else 
+      SERIAL_ERRORLNPGM(MSG_HEATER_BED);
   }
   #if DISABLED(BOGUS_TEMPERATURE_FAILSAFE_OVERRIDE)
     static bool killed = false;
@@ -853,47 +875,6 @@ float Temperature::get_pid_output(const int8_t e) {
     return pid_output;
   }
 #endif // PIDTEMPBED
-
-#if ENABLED(PIDTEMPCHAMBER)
-  float Temperature::get_pid_output_chamber() {
-    float pid_output;
-    #if DISABLED(PID_OPENLOOP)
-      pid_error_chamber = target_temperature_chamber - current_temperature_chamber;
-      pTerm_chamber = DEFAULT_chamberKp * pid_error_chamber;
-      temp_iState_chamber += pid_error_chamber;
-      iTerm_chamber = DEFAULT_chamberKi * temp_iState_chamber;
-
-      dTerm_chamber = PID_K2 * DEFAULT_chamberKd * (current_temperature_chamber - temp_dState_chamber) + PID_K1 * dTerm_bed;
-      temp_dState_chamber = current_temperature_chamber;
-
-      pid_output = pTerm_chamber + iTerm_chamber - dTerm_chamber;
-      if (pid_output < 0) 
-      {
-        if (pid_error_chamber < 0) temp_iState_chamber -= pid_error_chamber; // conditional un-integration
-        pid_output = 0;
-      }
-    #else
-      pid_output = constrain(target_temperature_chamber, 0, 0x7F);
-    #endif // PID_OPENLOOP
-
-    #if ENABLED(PID_CHAMBER_DEBUG)
-      SERIAL_ECHO_START();
-      SERIAL_ECHOPGM(" PID_CHAMBER_DEBUG ");
-      SERIAL_ECHOPGM(": Input ");
-      SERIAL_ECHO(current_temperature_chamber);
-      SERIAL_ECHOPGM(" Output ");
-      SERIAL_ECHO(pid_output);
-      SERIAL_ECHOPGM(" pTerm ");
-      SERIAL_ECHO(pTerm_chamber);
-      SERIAL_ECHOPGM(" iTerm ");
-      SERIAL_ECHO(iTerm_chamber);
-      SERIAL_ECHOPGM(" dTerm ");
-      SERIAL_ECHOLN(dTerm_chamber);
-    #endif // PID_BED_DEBUG
-
-    return pid_output;
-  }
-#endif // PIDTEMPCHAMBER
 
 #ifdef HARDWARE_PWM
   void set_bed_PWM(const uint8_t value)
@@ -1083,9 +1064,10 @@ void Temperature::manage_heater() {
     }
   #endif // HAS_HEATED_BED
 
-  #if HAS_HEATER_CHAMBER
-    thermal_runaway_protection_chamber(current_temperature_chamber, target_temperature_chamber, 60, 5);
-    soft_pwm_chamber = current_temperature_chamber > 5 && current_temperature_chamber < 60 ? (uint8_t)get_pid_output_chamber() : 0;
+  #if HAS_HEATED_CHAMBER
+    #if HAS_THERMALLY_PROTECTED_CHAMBER
+      thermal_runaway_protection_chamber(current_temperature_chamber, target_temperature_chamber, CHAMBER_MAXTEMP, CHAMBER_MINTEMP);
+    #endif
   #endif
 }
 
@@ -1322,7 +1304,7 @@ void Temperature::init() {
     SET_OUTPUT(HEATER_BED_PIN);
   #endif
 
-  #if HAS_HEATER_CHAMBER
+  #if HAS_HEATED_CHAMBER
     SET_OUTPUT(HEATER_CHAMBER_PIN);
   #endif
 
@@ -1692,6 +1674,60 @@ void Temperature::init() {
     millis_t Temperature::thermal_runaway_bed_timer;
   #endif
 
+  #if HAS_THERMALLY_PROTECTED_CHAMBER
+    Temperature::TRState Temperature::thermal_runaway_chamber_state_machine = TRInactive;
+    millis_t Temperature::thermal_runaway_chamber_timer;
+
+    void Temperature::thermal_runaway_protection_chamber(const float &current, const float &target, const uint16_t period_seconds, const uint16_t hysteresis_degc) {
+
+      static float tr_target_temperature_chamber = 0.0;
+      // If the target temperature changes, restart
+      if (tr_target_temperature_chamber != target) {
+        tr_target_temperature_chamber = target;
+        thermal_runaway_chamber_state_machine = target > 0 ? TRFirstHeating : TRInactive;
+      }
+
+      switch (thermal_runaway_chamber_state_machine) 
+      {
+        // Inactive state waits for a target temperature to be set
+        case TRInactive: break;
+        // When first heating, wait for the temperature to be reached then go to Stable state
+        case TRFirstHeating:
+          if (current < tr_target_temperature_chamber) break;
+          thermal_runaway_chamber_state_machine = TRStable;
+        // While the temperature is stable watch for a bad temperature
+        case TRStable:
+          if (current >= tr_target_temperature_chamber - hysteresis_degc) 
+          {
+            thermal_runaway_chamber_timer = millis() + period_seconds * 1000UL;
+            break;
+          }
+          else if (PENDING(millis(), thermal_runaway_chamber_timer)) break;
+          thermal_runaway_chamber_state_machine = TRRunaway;
+        case TRRunaway:
+        {
+          if (IsRunning()) {
+            SERIAL_ERROR_START();
+            serialprintPGM(PSTR(MSG_T_THERMAL_RUNAWAY));
+            SERIAL_ERRORPGM(MSG_STOPPED_HEATER);
+            SERIAL_ERRORLNPGM("CHAMBER");
+          }
+          #if DISABLED(BOGUS_TEMPERATURE_FAILSAFE_OVERRIDE)
+            static bool killed = false;
+            if (!killed) 
+            {
+              Running = false;
+              killed = true;
+              kill("CHAMBER THERMAL RUNAWAY");
+            }
+            else
+              disable_all_heaters(); // paranoia
+          #endif
+        }
+      }
+    }
+  #endif
+
   void Temperature::thermal_runaway_protection(Temperature::TRState * const state, millis_t * const timer, const float &current, const float &target, const int8_t heater_id, const uint16_t period_seconds, const uint16_t hysteresis_degc) {
 
     static float tr_target_temperature[HOTENDS + 1] = { 0.0 };
@@ -1755,58 +1791,6 @@ void Temperature::init() {
 
 #endif // THERMAL_PROTECTION_HOTENDS || THERMAL_PROTECTION_BED
 
-Temperature::TRState Temperature::thermal_runaway_chamber_state_machine = TRInactive;
-millis_t Temperature::thermal_runaway_chamber_timer;
-
-void Temperature::thermal_runaway_protection_chamber(const float &current, const float &target, const uint16_t period_seconds, const uint16_t hysteresis_degc) {
-
-  static float tr_target_temperature_chamber = 0.0;
-  // If the target temperature changes, restart
-  if (tr_target_temperature_chamber != target) {
-    tr_target_temperature_chamber = target;
-    thermal_runaway_chamber_state_machine = target > 0 ? TRFirstHeating : TRInactive;
-  }
-
-  switch (thermal_runaway_chamber_state_machine) 
-  {
-    // Inactive state waits for a target temperature to be set
-    case TRInactive: break;
-    // When first heating, wait for the temperature to be reached then go to Stable state
-    case TRFirstHeating:
-      if (current < tr_target_temperature_chamber) break;
-      thermal_runaway_chamber_state_machine = TRStable;
-    // While the temperature is stable watch for a bad temperature
-    case TRStable:
-      if (current >= tr_target_temperature_chamber - hysteresis_degc) 
-      {
-        thermal_runaway_chamber_timer = millis() + period_seconds * 1000UL;
-        break;
-      }
-      else if (PENDING(millis(), thermal_runaway_chamber_timer)) break;
-      thermal_runaway_chamber_state_machine = TRRunaway;
-    case TRRunaway:
-    {
-      if (IsRunning()) {
-        SERIAL_ERROR_START();
-        serialprintPGM(PSTR(MSG_T_THERMAL_RUNAWAY));
-        SERIAL_ERRORPGM(MSG_STOPPED_HEATER);
-        SERIAL_ERRORLNPGM("CHAMBER");
-      }
-      #if DISABLED(BOGUS_TEMPERATURE_FAILSAFE_OVERRIDE)
-        static bool killed = false;
-        if (!killed) 
-        {
-          Running = false;
-          killed = true;
-          kill("CHAMBER THERMAL RUNAWAY");
-        }
-        else
-          disable_all_heaters(); // paranoia
-      #endif
-    }
-  }
-}
-
 void Temperature::disable_all_heaters() {
 
   #if ENABLED(AUTOTEMP)
@@ -1853,9 +1837,8 @@ void Temperature::disable_all_heaters() {
     #endif
   #endif
 
-  #if HAS_HEATER_CHAMBER
+  #if HAS_HEATED_CHAMBER
     target_temperature_chamber = 0;
-    soft_pwm_chamber = 0;
     WRITE(HEATER_CHAMBER_PIN, LOW);
   #endif
 }
@@ -2155,6 +2138,17 @@ void Temperature::readings_ready() {
     ;
     if (current_temperature_bed_raw GEBED bed_maxttemp_raw) max_temp_error(-1);
     if (bed_minttemp_raw GEBED current_temperature_bed_raw && bed_on) min_temp_error(-1);
+  #endif
+
+  #if HAS_HEATED_CHAMBER
+    #if HEATER_CHAMBER_RAW_LO_TEMP > HEATER_CHAMBER_RAW_HI_TEMP
+      #define GEBED <=
+    #else
+      #define GEBED >=
+    #endif
+    const bool chamber_on = (target_temperature_chamber > 0);
+    if (current_temperature_chamber_raw GEBED chamber_maxttemp_raw) max_temp_error(0x7F);
+    if (chamber_minttemp_raw GEBED current_temperature_bed_raw && chamber_on) min_temp_error(0x7F);
   #endif
 }
 
@@ -2459,7 +2453,7 @@ void Temperature::isr() {
   #endif // SLOW_PWM_HEATERS
 #endif // HARDWARE_PWM
 
-#if defined(HEATED_CHAMBER) && HAS_HEATER_CHAMBER
+#if HAS_HEATED_CHAMBER
   static uint8_t pwm_count_chamber = 0;
   static uint8_t slow_pwm_count_chamber = 0;
   static uint8_t state_heater_chamber = 0;
@@ -2477,29 +2471,18 @@ void Temperature::isr() {
       #define MIN_STATE_TIME_CHAMBER 64 // MIN_STATE_TIME * 65.5 = time in milliseconds
     #endif
 
-    if (slow_pwm_count_chamber == 0)
+    if(current_temperature_chamber < target_temperature_chamber && 
+       current_temperature_chamber > CHAMBER_MINTEMP && 
+       current_temperature_chamber < CHAMBER_MAXTEMP)
     {
-      if (soft_pwm_chamber > 0) 
+      if (state_timer_heater_chamber == 0) 
       {
-        if (state_timer_heater_chamber == 0) 
-        {
-          if (state_heater_chamber == 0) state_timer_heater_chamber = MIN_STATE_TIME_CHAMBER;
-          state_heater_chamber = 1;
-          WRITE(HEATER_CHAMBER_PIN, 1);
-        }
-      }
-      else 
-      {
-        if (state_timer_heater_chamber == 0) 
-        {
-          if (state_heater_chamber == 1) state_timer_heater_chamber = MIN_STATE_TIME_CHAMBER;
-          state_heater_chamber = 0;
-          WRITE(HEATER_CHAMBER_PIN, 0);
-        }
+        if (state_heater_chamber == 0) state_timer_heater_chamber = MIN_STATE_TIME_CHAMBER;
+        state_heater_chamber = 1;
+        WRITE(HEATER_CHAMBER_PIN, 1);
       }
     }
-
-    if (soft_pwm_chamber < slow_pwm_count_chamber)
+    else
     {
       if (state_timer_heater_chamber == 0) 
       {
@@ -2508,7 +2491,7 @@ void Temperature::isr() {
         WRITE(HEATER_CHAMBER_PIN, 0);
       }
     }
-
+    
     pwm_count_chamber = pwm_count_chamber_tmp + 1;
 
     // increment slow_pwm_count only every 64th pwm_count,
@@ -2518,6 +2501,17 @@ void Temperature::isr() {
       slow_pwm_count_chamber++;
       slow_pwm_count_chamber &= 0x7F;
       if (state_timer_heater_chamber > 0) state_timer_heater_chamber--;
+
+      #if ENABLED(PID_CHAMBER_DEBUG)
+        SERIAL_ECHO_START();
+        SERIAL_ECHOPGM(" PID_CHAMBER_DEBUG ");
+        SERIAL_ECHOPGM(": Curr ");
+        SERIAL_ECHO(current_temperature_chamber);
+        SERIAL_ECHOPGM(" Target ");
+        SERIAL_ECHO((int)target_temperature_chamber);
+        SERIAL_ECHOPGM(" PWM Count ");
+        SERIAL_ECHOLN((int)slow_pwm_count_chamber);
+      #endif // PID_CHAMBER_DEBUG
     }
 #endif
 

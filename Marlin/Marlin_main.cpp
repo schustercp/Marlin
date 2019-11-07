@@ -273,12 +273,6 @@
 #include "types.h"
 #include "parser.h"
 
-#if ENABLED(RGB_LED_WS2812)
-    #include "WS2812.h"
-    WS2812 LED(9); // 9 LED
-    cRGB value;
-#endif
-
 #if HAS_ABL
   #if ENABLED(AUTO_POWER_CONTROL)
     #include "power.h"
@@ -1012,52 +1006,51 @@ void servo_init() {
 
 #endif
 
-#if HAS_COLOR_LEDS
+// #if HAS_COLOR_LEDS
 
-  void set_led_color(
-    const uint8_t r, const uint8_t g, const uint8_t b
-      #if ENABLED(RGBW_LED)
-        , const uint8_t w=0
-      #endif
-  ) {
+//   void set_led_color(
+//     const uint8_t r, const uint8_t g, const uint8_t b
+//       #if ENABLED(RGBW_LED)
+//         , const uint8_t w=0
+//       #endif
+//   ) {
 
-    #if ENABLED(BLINKM)
+//     #if ENABLED(BLINKM)
 
-      // This variant uses i2c to send the RGB components to the device.
-      SendColors(r, g, b);
+//       // This variant uses i2c to send the RGB components to the device.
+//       SendColors(r, g, b);
       
-    #elif ENABLED(RGB_LED_WS2812)
-        value.b = b; value.g = g; value.r = r; // RGB Value -> Blue
-        LED.set_crgb_at(0, value); // Set value at LED found at index 0
-        LED.set_crgb_at(1, value);
-        LED.set_crgb_at(2, value);
-        LED.set_crgb_at(3, value);
-        LED.set_crgb_at(4, value);
-        LED.set_crgb_at(5, value);
-        LED.set_crgb_at(6, value);
-        LED.set_crgb_at(7, value);
-        LED.set_crgb_at(8, value);
-        LED.sync(); // Sends the value to the LED
-    #else
+//     #elif defined(RGB_LED_WS2812)
+//         value.b = b; value.g = g; value.r = r; // RGB Value -> Blue
+//         LED.set_crgb_at(0, value); // Set value at LED found at index 0
+//         LED.set_crgb_at(1, value);
+//         LED.set_crgb_at(2, value);
+//         LED.set_crgb_at(3, value);
+//         LED.set_crgb_at(4, value);
+//         LED.set_crgb_at(5, value);
+//         LED.set_crgb_at(6, value);
+//         LED.set_crgb_at(7, value);
+//         LED.set_crgb_at(8, value);
+//         LED.sync(); // Sends the value to the LED
+//     #else
+//       // This variant uses 3 separate pins for the RGB components.
+//       // If the pins can do PWM then their intensity will be set.
+//       WRITE(RGB_LED_R_PIN, r ? HIGH : LOW);
+//       WRITE(RGB_LED_G_PIN, g ? HIGH : LOW);
+//       WRITE(RGB_LED_B_PIN, b ? HIGH : LOW);
+//       analogWrite(RGB_LED_R_PIN, r);
+//       analogWrite(RGB_LED_G_PIN, g);
+//       analogWrite(RGB_LED_B_PIN, b);
 
-      // This variant uses 3 separate pins for the RGB components.
-      // If the pins can do PWM then their intensity will be set.
-      WRITE(RGB_LED_R_PIN, r ? HIGH : LOW);
-      WRITE(RGB_LED_G_PIN, g ? HIGH : LOW);
-      WRITE(RGB_LED_B_PIN, b ? HIGH : LOW);
-      analogWrite(RGB_LED_R_PIN, r);
-      analogWrite(RGB_LED_G_PIN, g);
-      analogWrite(RGB_LED_B_PIN, b);
+//       #if ENABLED(RGBW_LED)
+//         WRITE(RGB_LED_W_PIN, w ? HIGH : LOW);
+//         analogWrite(RGB_LED_W_PIN, w);
+//       #endif
 
-      #if ENABLED(RGBW_LED)
-        WRITE(RGB_LED_W_PIN, w ? HIGH : LOW);
-        analogWrite(RGB_LED_W_PIN, w);
-      #endif
+//     #endif
+//   }
 
-    #endif
-  }
-
-#endif // HAS_COLOR_LEDS
+// #endif // HAS_COLOR_LEDS
 
 void gcode_line_error(const char* err, bool doFlush = true) {
   SERIAL_ERROR_START();
@@ -15393,8 +15386,6 @@ void stop() {
  *    • status LEDs
  */
 void setup() {
-    
-  LED.setOutput(5); // Digital Pin 5
 
   #if ENABLED(MAX7219_DEBUG)
     max7219.init();

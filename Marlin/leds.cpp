@@ -53,6 +53,10 @@
   bool LEDLights::lights_on;
 #endif
 
+#if defined(RGB_LED_WS2812)
+  WS2812 LEDLights::WS2812_LED(NUM_RGB_LED_WS2812);
+#endif
+
 LEDLights leds;
 
 void LEDLights::setup() {
@@ -61,6 +65,10 @@ void LEDLights::setup() {
   #endif
   #if ENABLED(LED_USER_PRESET_STARTUP)
     set_default();
+  #endif
+
+  #if defined(RGB_LED_WS2812)
+    WS2812_LED.setOutput(RGB_LED_WS2812_PIN); // Digital Pin 5
   #endif
 }
 
@@ -117,6 +125,16 @@ void LEDLights::set_color(const LEDColor &incol
     pca9632_set_led_color(incol);
   #endif
 
+  #if defined(RGB_LED_WS2812)
+    cRGB value;
+    value.b = incol.b; value.g = incol.g; value.r = incol.r; // RGB Value -> Blue
+    for(int q = 0; q < NUM_RGB_LED_WS2812; q++)
+    {
+       WS2812_LED.set_crgb_at(q, value); // Set value at LED found at index q
+    }
+    WS2812_LED.sync(); // Sends the value to the LED
+  #endif
+
   #if ENABLED(LED_CONTROL_MENU)
     // Don't update the color when OFF
     lights_on = !incol.is_off();
@@ -125,7 +143,7 @@ void LEDLights::set_color(const LEDColor &incol
 }
 
 void LEDLights::set_white() {
-  #if ENABLED(RGB_LED) || ENABLED(RGBW_LED) || ENABLED(BLINKM) || ENABLED(PCA9632)
+  #if ENABLED(RGB_LED) || ENABLED(RGBW_LED) || ENABLED(BLINKM) || ENABLED(PCA9632) || defined(RGB_LED_WS2812)
     set_color(LEDColorWhite());
   #endif
   #if ENABLED(NEOPIXEL_LED)
