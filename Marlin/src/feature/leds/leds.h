@@ -33,6 +33,10 @@
   #include "neopixel.h"
 #endif
 
+#if defined(RGB_LED_WS2812)
+    #include "WS2812.h"
+#endif
+
 // A white component can be passed
 #define HAS_WHITE_LED EITHER(RGBW_LED, NEOPIXEL_LED)
 
@@ -212,6 +216,10 @@ public:
         if (!lights_on) set_default();
       }
       static void update_timeout(const bool power_on);
+  #endif
+
+  #if defined(RGB_LED_WS2812)
+    static WS2812 WS2812_LED;
   #endif
 };
 

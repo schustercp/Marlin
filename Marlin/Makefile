@@ -160,6 +160,8 @@ else ifeq ($(HARDWARE_MOTHERBOARD),1033)
 # RAMPS Plus 3DYMY (Power outputs: Spindle, Controller Fan)
 else ifeq ($(HARDWARE_MOTHERBOARD),1034)
 
+else ifeq ($(HARDWARE_MOTHERBOARD),1040)
+
 #
 # RAMPS Derivatives - ATmega1280, ATmega2560
 #

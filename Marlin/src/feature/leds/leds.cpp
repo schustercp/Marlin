@@ -42,6 +42,11 @@
   #include <SailfishRGB_LED.h>
 #endif
 
+#if defined(RGB_LED_WS2812)
+  #include "cRGB.h"
+  WS2812 LEDLights::WS2812_LED(NUM_RGB_LED_WS2812);
+#endif
+
 #if ENABLED(LED_COLOR_PRESETS)
   const LEDColor LEDLights::defaultLEDColor = MakeLEDColor(
     LED_USER_PRESET_RED,
@@ -76,6 +81,9 @@ void LEDLights::setup() {
   #endif
   #if ENABLED(LED_USER_PRESET_STARTUP)
     set_default();
+  #endif
+  #if defined(RGB_LED_WS2812)
+    WS2812_LED.setOutput(RGB_LED_WS2812_PIN); // Digital Pin 5
   #endif
 }
 
@@ -142,6 +150,16 @@ void LEDLights::set_color(const LEDColor &incol
 
   #if ENABLED(PCA9533)
     RGBsetColor(incol.r, incol.g, incol.b, true);
+  #endif
+
+  #if defined(RGB_LED_WS2812)
+    cRGB value;
+    value.b = incol.b; value.g = incol.g; value.r = incol.r; // RGB Value -> Blue
+    for(int q = 0; q < NUM_RGB_LED_WS2812; q++)
+    {
+       WS2812_LED.set_crgb_at(q, value); // Set value at LED found at index q
+    }
+    WS2812_LED.sync(); // Sends the value to the LED
   #endif
 
   #if EITHER(LED_CONTROL_MENU, PRINTER_EVENT_LEDS)
