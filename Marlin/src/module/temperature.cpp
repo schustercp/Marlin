@@ -111,6 +111,8 @@
   #endif
 #endif
 
+void setupHardwarePWM();
+
 Temperature thermalManager;
 
 const char str_t_thermal_runaway[] PROGMEM = STR_T_THERMAL_RUNAWAY,
@@ -1061,7 +1063,10 @@ void Temperature::manage_heater() {
         thermal_runaway_protection(tr_state_machine[e], temp_hotend[e].celsius, temp_hotend[e].target, (heater_ind_t)e, THERMAL_PROTECTION_PERIOD, THERMAL_PROTECTION_HYSTERESIS);
       #endif
 
-      temp_hotend[e].soft_pwm_amount = (temp_hotend[e].celsius > temp_range[e].mintemp || is_preheating(e)) && temp_hotend[e].celsius < temp_range[e].maxtemp ? (int)get_pid_output_hotend(e) >> 1 : 0;
+      temp_hotend[e].soft_pwm_amount = (temp_hotend[e].celsius > temp_range[e].mintemp || is_preheating(e)) && temp_hotend[e].celsius < temp_range[e].maxtemp ? (uint8_t)get_pid_output_hotend(e) : 0;
+      if(e == 0) HEATER_0_PWM = ((uint16_t)(temp_hotend[e].soft_pwm_amount)) << 2;
+      if(e == 1) HEATER_1_PWM = ((uint16_t)(temp_hotend[e].soft_pwm_amount)) << 2;
+      if(e == 2) HEATER_2_PWM = ((uint16_t)(temp_hotend[e].soft_pwm_amount)) << 2;
 
       #if WATCH_HOTENDS
         // Make sure temperature is increasing
@@ -1153,7 +1158,8 @@ void Temperature::manage_heater() {
       #endif
       {
         #if ENABLED(PIDTEMPBED)
-          temp_bed.soft_pwm_amount = WITHIN(temp_bed.celsius, BED_MINTEMP, BED_MAXTEMP) ? (int)get_pid_output_bed() >> 1 : 0;
+          temp_bed.soft_pwm_amount = WITHIN(temp_bed.celsius, BED_MINTEMP, BED_MAXTEMP) ? (uint8_t)get_pid_output_bed() : 0;
+          HEATER_BED_PWM = temp_bed.soft_pwm_amount;
         #else
           // Check if temperature is within the correct band
           if (WITHIN(temp_bed.celsius, BED_MINTEMP, BED_MAXTEMP)) {
@@ -1757,6 +1763,7 @@ void Temperature::init() {
   #endif
 
   HAL_adc_init();
+  setupHardwarePWM();
 
   #if HAS_TEMP_ADC_0
     HAL_ANALOG_SELECT(TEMP_0_PIN);
@@ -2098,17 +2105,22 @@ void Temperature::disable_all_heaters() {
   #define DISABLE_HEATER(N) {           \
     setTargetHotend(0, N);              \
     temp_hotend[N].soft_pwm_amount = 0; \
-    WRITE_HEATER_##N(LOW);              \
+    /*WRITE_HEATER_##N(LOW);*/          \
   }
 
   #if HAS_TEMP_HOTEND
     REPEAT(HOTENDS, DISABLE_HEATER);
+
+    HEATER_0_PWM = 0;
+    HEATER_1_PWM = 0;
+    HEATER_2_PWM = 0;
   #endif
 
   #if HAS_HEATED_BED
     temp_bed.target = 0;
     temp_bed.soft_pwm_amount = 0;
-    WRITE_HEATER_BED(LOW);
+    HEATER_BED_PWM = 0;
+    //WRITE_HEATER_BED(LOW);
   #endif
 
   #if HAS_HEATED_CHAMBER
@@ -2539,13 +2551,13 @@ void Temperature::tick() {
     static bool ADCKey_pressed = false;
   #endif
 
-  #if HOTENDS
-    static SoftPWM soft_pwm_hotend[HOTENDS];
-  #endif
+  // #if HOTENDS
+  //   static SoftPWM soft_pwm_hotend[HOTENDS];
+  // #endif
 
-  #if HAS_HEATED_BED
-    static SoftPWM soft_pwm_bed;
-  #endif
+  // #if HAS_HEATED_BED
+  //   static SoftPWM soft_pwm_bed;
+  // #endif
 
   #if HAS_HEATED_CHAMBER
     static SoftPWM soft_pwm_chamber;
@@ -2573,14 +2585,14 @@ void Temperature::tick() {
     if (pwm_count_tmp >= 127) {
       pwm_count_tmp -= 127;
 
-      #if HOTENDS
-        #define _PWM_MOD_E(N) _PWM_MOD(N,soft_pwm_hotend[N],temp_hotend[N]);
-        REPEAT(HOTENDS, _PWM_MOD_E);
-      #endif
+      // #if HOTENDS
+      //   #define _PWM_MOD_E(N) _PWM_MOD(N,soft_pwm_hotend[N],temp_hotend[N]);
+      //   REPEAT(HOTENDS, _PWM_MOD_E);
+      // #endif
 
-      #if HAS_HEATED_BED
-        _PWM_MOD(BED,soft_pwm_bed,temp_bed);
-      #endif
+      // #if HAS_HEATED_BED
+      //   _PWM_MOD(BED,soft_pwm_bed,temp_bed);
+      // #endif
 
       #if HAS_HEATED_CHAMBER
         _PWM_MOD(CHAMBER,soft_pwm_chamber,temp_chamber);
@@ -2620,14 +2632,14 @@ void Temperature::tick() {
     }
     else {
       #define _PWM_LOW(N,S) do{ if (S.count <= pwm_count_tmp) WRITE_HEATER_##N(LOW); }while(0)
-      #if HOTENDS
-        #define _PWM_LOW_E(N) _PWM_LOW(N, soft_pwm_hotend[N]);
-        REPEAT(HOTENDS, _PWM_LOW_E);
-      #endif
+      // #if HOTENDS
+      //   #define _PWM_LOW_E(N) _PWM_LOW(N, soft_pwm_hotend[N]);
+      //   REPEAT(HOTENDS, _PWM_LOW_E);
+      // #endif
 
-      #if HAS_HEATED_BED
-        _PWM_LOW(BED, soft_pwm_bed);
-      #endif
+      // #if HAS_HEATED_BED
+      //   _PWM_LOW(BED, soft_pwm_bed);
+      // #endif
 
       #if HAS_HEATED_CHAMBER
         _PWM_LOW(CHAMBER, soft_pwm_chamber);
@@ -3462,5 +3474,68 @@ void Temperature::tick() {
     }
 
   #endif // HAS_HEATED_CHAMBER
+
+  void setupHardwarePWM()
+  {
+     // initialize the digital pin as an output.
+  pinMode(HEATER_BED_PIN, OUTPUT); //OCR2A
+  pinMode(FAN_PIN, OUTPUT);        //OCR2B
+  
+  pinMode(HEATER_0_PIN, OUTPUT);   //OCR4A
+  pinMode(HEATER_1_PIN, OUTPUT);   //OCR4B
+  pinMode(HEATER_2_PIN, OUTPUT);   //OCR4C
+   
+  //Timer2 is an 8 bit timer.
+  OCR2A = 0x0;
+  OCR2B = 0x0;
+  TCCR2A = 0x00;   //TCCR2A – Timer/Counter Control Register A
+  TCCR2B = 0x00;   //TCCR2B – Timer/Counter Control Register B
+    
+  //Set clkT2S/8 (From prescaler)
+  CBI(TCCR2B, CS22);
+  SBI(TCCR2B, CS21);
+  CBI(TCCR2B, CS20);
+  
+  // Mode 1: PWM, Phase Correct
+  CBI(TCCR2B, WGM22);
+  CBI(TCCR2A, WGM21);
+  SBI(TCCR2A, WGM20);
+  
+  //Clear OC2A on Compare Match when up-counting, Set OC2A on Compare Match when down-counting
+  SBI(TCCR2A, COM2A1);
+  CBI(TCCR2A, COM2A0);
+  
+  //Clear OC2A on Compare Match when up-counting, Set OC2A on Compare Match when down-counting
+  CBI(TCCR2A, COM2B1);
+  CBI(TCCR2A, COM2B0);
+
+  //Timer4 is a 16 bit timer.
+  TCCR4A = 0x00;
+  TCCR4B = 0x00;
+  TCCR4C = 0x00;
+  
+  //Set Prescaler to - clk I/O /8
+  CBI(TCCR4B, CS42);
+  SBI(TCCR4B, CS41);
+  CBI(TCCR4B, CS40);
+
+  //Set the Mode of all the Timer 4 PWM Outputs
+  //Clear on Reset / Set on Compare
+  SBI(TCCR4A, COM4A1);
+  CBI(TCCR4A, COM4A0);
+  
+  SBI(TCCR4A, COM4B1);
+  CBI(TCCR4A, COM4B0);
+  
+  SBI(TCCR4A, COM4C1);
+  CBI(TCCR4A, COM4C0);
+  
+  //PWM, Phase Correct, 10-bit
+  //TOP == 0x03FF
+  CBI(TCCR4B, WGM43);
+  CBI(TCCR4B, WGM42);
+  SBI(TCCR4A, WGM41);
+  SBI(TCCR4A, WGM40);
+  }
 
 #endif // HAS_TEMP_SENSOR
